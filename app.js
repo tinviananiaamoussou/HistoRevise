@@ -16,12 +16,18 @@ const TABS = [
   { key: "suivi", path: "#/suivi", label: "Suivi", icon: "📊" },
 ];
 
+const EDGE_CHAT_URL = SUPABASE_URL + "/functions/v1/chat";
+const SESSION_KEY = "histo_session_id_v1";
+function getSessionId() {
+  let id = localStorage.getItem(SESSION_KEY);
+  if (!id) {
+    id = (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random());
+    localStorage.setItem(SESSION_KEY, id);
+  }
+  return id;
+}
+
 const PLACEHOLDERS = {
-  chat: {
-    title: "Chat IA",
-    icon: "💬",
-    desc: "Posez vos questions, l'IA répond uniquement à partir des documents de votre coffre-fort, avec citation des sources.",
-  },
   atlas: {
     title: "Atlas 2D",
     icon: "🫀",
@@ -329,6 +335,108 @@ async function renderCoffre(root) {
   }
 }
 
+/* ---------- Écran Chat IA ---------- */
+function bubbleHTML(role, content, msgIndex) {
+  const isUser = role === "user";
+  return `
+    <div class="chat-row ${isUser ? "user" : "assistant"}">
+      <div class="chat-bubble ${isUser ? "user" : "assistant"}">${esc(content).replace(/\n/g, "<br>")}</div>
+      ${!isUser ? `
+        <div class="chat-actions" data-for="${msgIndex}">
+          <button class="link-btn" data-action="unclear" data-idx="${msgIndex}">Pas clair 🤔</button>
+          <div class="whatsapp-wrap" data-wa-for="${msgIndex}" hidden></div>
+        </div>` : ""}
+    </div>`;
+}
+
+async function renderChat(root) {
+  const sessionId = getSessionId();
+  root.innerHTML = `
+    <div class="screen">
+      ${shellHTML("chat", "HistoRévise", "Chat IA — répond à partir de votre coffre-fort")}
+      <main class="main chat-main">
+        <div id="chat-list" class="chat-list"><div class="skeleton"></div></div>
+      </main>
+      <form id="chat-form" class="chat-input-bar">
+        <input id="chat-input" type="text" placeholder="Posez votre question..." autocomplete="off" required />
+        <button type="submit" class="btn" id="chat-send">➤</button>
+      </form>
+      ${navHTML("chat")}
+    </div>
+  `;
+
+  let messages = [];
+  let whatsappNumber = "";
+
+  try {
+    const [{ data: hist }, { data: settings }] = await Promise.all([
+      sb.from("chat_messages").select("role, content").eq("session_id", sessionId).order("created_at", { ascending: true }),
+      sb.from("app_settings").select("value").eq("key", "whatsapp_number").maybeSingle(),
+    ]);
+    messages = hist || [];
+    whatsappNumber = (settings && settings.value) || "";
+  } catch (e) {
+    console.error(e);
+  }
+
+  renderMessages();
+
+  function renderMessages() {
+    const list = qs("#chat-list");
+    if (messages.length === 0) {
+      list.innerHTML = `<div class="screen-empty"><div class="ico">💬</div><h2>Posez votre première question</h2><p>L'IA répond uniquement à partir des documents de votre coffre-fort, avec citation des sources.</p></div>`;
+      return;
+    }
+    list.innerHTML = messages.map((m, i) => bubbleHTML(m.role, m.content, i)).join("");
+    qsa('[data-action="unclear"]', list).forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const idx = btn.dataset.idx;
+        const wrap = qs(`[data-wa-for="${idx}"]`, list);
+        if (!whatsappNumber) {
+          wrap.innerHTML = `<p class="muted-note">Le contact de l'assistant du Professeur n'est pas encore configuré.</p>`;
+        } else {
+          const q = messages[idx - 1]?.content || "";
+          const a = messages[idx]?.content || "";
+          const text = `Bonjour, j'ai une question sur HistoRévise.\n\nMa question : ${q}\n\nRéponse de l'IA : ${a}\n\nPouvez-vous m'aider ?`;
+          wrap.innerHTML = `<a class="btn whatsapp" target="_blank" rel="noopener" href="https://wa.me/${whatsappNumber.replace(/\D/g, "")}?text=${encodeURIComponent(text)}">💬 Demander à l'assistant du Professeur</a>`;
+        }
+        wrap.hidden = false;
+        btn.hidden = true;
+      });
+    });
+    list.scrollTop = list.scrollHeight;
+  }
+
+  qs("#chat-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const input = qs("#chat-input");
+    const text = input.value.trim();
+    if (!text) return;
+    input.value = "";
+    const sendBtn = qs("#chat-send");
+    sendBtn.disabled = true;
+    messages.push({ role: "user", content: text });
+    messages.push({ role: "assistant", content: "…" });
+    renderMessages();
+
+    try {
+      const resp = await fetch(EDGE_CHAT_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ session_id: sessionId, message: text }),
+      });
+      const data = await resp.json();
+      if (!resp.ok) throw new Error(data.error || "Erreur serveur");
+      messages[messages.length - 1] = { role: "assistant", content: data.answer };
+    } catch (err) {
+      console.error(err);
+      messages[messages.length - 1] = { role: "assistant", content: "⚠️ Erreur : impossible d'obtenir une réponse pour le moment." };
+    }
+    renderMessages();
+    sendBtn.disabled = false;
+  });
+}
+
 /* ---------- Routeur ---------- */
 async function render() {
   const root = document.getElementById("app");
@@ -337,7 +445,7 @@ async function render() {
   if (path === "/coffre") {
     await renderCoffre(root);
   } else if (path === "/") {
-    renderPlaceholder(root, "chat");
+    await renderChat(root);
   } else if (path === "/atlas") {
     renderPlaceholder(root, "atlas");
   } else if (path === "/qcm") {

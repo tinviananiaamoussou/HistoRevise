@@ -154,6 +154,32 @@ datalist {}
   border-radius: var(--radius-sm); padding: 0.8rem;
 }
 
+/* --- Chat IA --- */
+.chat-main { padding-bottom: 0.5rem; display: flex; flex-direction: column; min-height: calc(100vh - 4.2rem); }
+.chat-list { flex: 1; display: flex; flex-direction: column; gap: 0.9rem; padding-bottom: 5rem; }
+.chat-row { display: flex; flex-direction: column; max-width: 86%; }
+.chat-row.user { align-self: flex-end; align-items: flex-end; }
+.chat-row.assistant { align-self: flex-start; align-items: flex-start; }
+.chat-bubble { border-radius: 1rem; padding: 0.65rem 0.9rem; font-size: 0.92rem; line-height: 1.45; }
+.chat-bubble.user { background: var(--accent); color: #fff; border-bottom-right-radius: 0.25rem; }
+.chat-bubble.assistant { background: var(--card); border: 1px solid var(--border); color: var(--fg); border-bottom-left-radius: 0.25rem; }
+.chat-actions { margin-top: 0.35rem; display: flex; flex-direction: column; align-items: flex-start; gap: 0.4rem; }
+.link-btn { background: none; border: none; color: var(--muted); font-size: 0.78rem; padding: 0; text-decoration: underline; }
+.muted-note { font-size: 0.78rem; color: var(--muted); margin: 0; }
+.btn.whatsapp { background: #25986a; font-size: 0.82rem; padding: 0.55rem 0.8rem; }
+
+.chat-input-bar {
+  position: fixed; left: 0; right: 0; bottom: 4.1rem; z-index: 22;
+  background: rgba(255,255,255,0.97); backdrop-filter: blur(6px);
+  border-top: 1px solid var(--border);
+  padding: 0.6rem 0.8rem; display: flex; gap: 0.5rem;
+}
+.chat-input-bar input {
+  flex: 1; border: 1px solid var(--border); border-radius: 999px;
+  padding: 0.6rem 1rem; background: #fff; color: var(--fg);
+}
+.chat-input-bar .btn { border-radius: 999px; width: 2.6rem; padding: 0; flex-shrink: 0; }
+
 .toast-root { position: fixed; left: 0; right: 0; bottom: 5.4rem; z-index: 100; display: flex; flex-direction: column; align-items: center; gap: 0.5rem; pointer-events: none; }
 .toast { background: #16241e; color: #fff; padding: 0.6rem 1rem; border-radius: 999px; font-size: 0.85rem; box-shadow: var(--shadow); opacity: 0; transform: translateY(6px); transition: all 0.2s ease; }
 .toast.show { opacity: 1; transform: translateY(0); }
