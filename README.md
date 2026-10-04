@@ -19,9 +19,10 @@ Application de révision d'histologie et d'embryologie pour étudiants en médec
 
 ### Configurer le numéro WhatsApp de l'assistant du Professeur
 
-Pas encore fait — le bouton WhatsApp affichera "non configuré" tant que ce
-n'est pas renseigné. Donne-moi le numéro (avec l'indicatif pays, ex :
-`22900000000`) et je le configure directement dans la base de données.
+Directement dans l'app : icône ⚙️ en haut à droite de l'écran Chat IA →
+saisir le numéro (avec l'indicatif pays, ex : `22900000000`) → Enregistrer.
+Modifiable à tout moment, par n'importe qui ayant accès à l'app (cohérent
+avec l'accès ouvert déjà choisi pour le reste de l'app).
 
 ## ⚠️ Sécurité — à corriger avant une diffusion large
 

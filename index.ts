@@ -32,20 +32,15 @@ Deno.serve(async (req: Request) => {
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const sb = createClient(supabaseUrl, serviceKey);
 
-    // 1) Clé Gemini depuis le coffre de secrets (Vault)
-    const { data: secretRows, error: secretErr } = await sb
-      .schema("vault")
-      .from("decrypted_secrets")
-      .select("decrypted_secret")
-      .eq("name", "gemini_api_key")
-      .limit(1);
-    if (secretErr || !secretRows || secretRows.length === 0) {
+    // 1) Clé Gemini depuis le coffre de secrets (Vault), via une fonction RPC dédiée
+    //    (le schéma "vault" n'est pas exposé directement par l'API REST)
+    const { data: geminiKey, error: secretErr } = await sb.rpc("get_secret", { secret_name: "gemini_api_key" });
+    if (secretErr || !geminiKey) {
       console.error("Secret introuvable", secretErr);
       return new Response(JSON.stringify({ error: "Clé API non configurée" }), {
         status: 500, headers: { ...corsHeaders(), "Content-Type": "application/json" },
       });
     }
-    const geminiKey = secretRows[0].decrypted_secret as string;
 
     // 2) Documents du coffre-fort (grounding)
     const { data: docs, error: docsErr } = await sb

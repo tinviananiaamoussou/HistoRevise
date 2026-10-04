@@ -66,6 +66,13 @@ function toast(message, isError = false) {
   requestAnimationFrame(() => el.classList.add("show"));
   setTimeout(() => { el.classList.remove("show"); setTimeout(() => el.remove(), 250); }, 2600);
 }
+function mdLite(text) {
+  let s = esc(text);
+  s = s.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+  s = s.replace(/(^|[^*])\*([^*\n]+?)\*(?!\*)/g, "$1<em>$2</em>");
+  s = s.replace(/\n/g, "<br>");
+  return s;
+}
 function fileKind(file) {
   const name = file.name.toLowerCase();
   if (name.endsWith(".pdf")) return "pdf";
@@ -142,14 +149,15 @@ const Vault = {
 };
 
 /* ---------- Rendu : shell + nav ---------- */
-function shellHTML(activeKey, title, subtitle) {
+function shellHTML(activeKey, title, subtitle, action) {
   return `
     <header class="header">
       <div class="header-inner">
-        <div>
+        <div style="flex:1; min-width:0">
           <h1>${esc(title)}</h1>
           ${subtitle ? `<p>${esc(subtitle)}</p>` : ""}
         </div>
+        ${action || ""}
       </div>
     </header>
   `;
@@ -338,9 +346,10 @@ async function renderCoffre(root) {
 /* ---------- Écran Chat IA ---------- */
 function bubbleHTML(role, content, msgIndex) {
   const isUser = role === "user";
+  const body = isUser ? esc(content).replace(/\n/g, "<br>") : mdLite(content);
   return `
     <div class="chat-row ${isUser ? "user" : "assistant"}">
-      <div class="chat-bubble ${isUser ? "user" : "assistant"}">${esc(content).replace(/\n/g, "<br>")}</div>
+      <div class="chat-bubble ${isUser ? "user" : "assistant"}">${body}</div>
       ${!isUser ? `
         <div class="chat-actions" data-for="${msgIndex}">
           <button class="link-btn" data-action="unclear" data-idx="${msgIndex}">Pas clair 🤔</button>
@@ -349,11 +358,39 @@ function bubbleHTML(role, content, msgIndex) {
     </div>`;
 }
 
+function openWhatsappSettingsModal(currentNumber, onSaved) {
+  const overlay = openModal(`
+    <h3>Contact de l'assistant du Professeur</h3>
+    <p class="muted-note" style="margin-bottom:0.9rem">Numéro WhatsApp utilisé par le bouton "Pas clair" dans le chat. Avec l'indicatif pays, sans espaces (ex : 22900000000).</p>
+    <div class="field"><label for="f-whatsapp">Numéro WhatsApp</label>
+      <input id="f-whatsapp" value="${esc(currentNumber || "")}" placeholder="22900000000" inputmode="tel" /></div>
+    <button class="btn block" id="btn-save-whatsapp">Enregistrer</button>
+  `);
+  qs("#btn-save-whatsapp", overlay).addEventListener("click", async () => {
+    const value = qs("#f-whatsapp", overlay).value.trim();
+    const btn = qs("#btn-save-whatsapp", overlay);
+    btn.disabled = true;
+    btn.innerHTML = `<span class="spinner"></span> Enregistrement...`;
+    try {
+      const { error } = await sb.from("app_settings").upsert({ key: "whatsapp_number", value });
+      if (error) throw error;
+      overlay.remove();
+      toast("Numéro WhatsApp enregistré");
+      onSaved(value);
+    } catch (e) {
+      console.error(e);
+      btn.disabled = false;
+      btn.textContent = "Enregistrer";
+      toast("Échec de l'enregistrement", true);
+    }
+  });
+}
+
 async function renderChat(root) {
   const sessionId = getSessionId();
   root.innerHTML = `
     <div class="screen">
-      ${shellHTML("chat", "HistoRévise", "Chat IA — répond à partir de votre coffre-fort")}
+      ${shellHTML("chat", "HistoRévise", "Chat IA — répond à partir de votre coffre-fort", `<button class="header-action" id="btn-chat-settings" aria-label="Réglages">⚙️</button>`)}
       <main class="main chat-main">
         <div id="chat-list" class="chat-list"><div class="skeleton"></div></div>
       </main>
@@ -380,6 +417,12 @@ async function renderChat(root) {
   }
 
   renderMessages();
+
+  qs("#btn-chat-settings").addEventListener("click", () => {
+    openWhatsappSettingsModal(whatsappNumber, (newValue) => {
+      whatsappNumber = newValue;
+    });
+  });
 
   function renderMessages() {
     const list = qs("#chat-list");
