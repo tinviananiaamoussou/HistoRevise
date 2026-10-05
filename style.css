@@ -185,6 +185,33 @@ datalist {}
 }
 .chat-input-bar .btn { border-radius: 999px; width: 2.6rem; padding: 0; flex-shrink: 0; }
 
+/* --- QCM --- */
+.qcm-question { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); padding: 0.9rem; margin-top: 0.8rem; }
+.qcm-statement { margin: 0 0 0.7rem; font-size: 0.95rem; line-height: 1.5; }
+.qcm-prop { display: flex; align-items: flex-start; gap: 0.6rem; padding: 0.5rem 0.2rem; border-top: 1px solid var(--border); font-size: 0.9rem; line-height: 1.4; }
+.qcm-prop:first-of-type { border-top: none; }
+.qcm-prop input { margin-top: 0.2rem; width: 1.1rem; height: 1.1rem; flex-shrink: 0; }
+
+.qcm-score-card { background: var(--accent); color: #fff; border-radius: var(--radius); padding: 1.3rem; text-align: center; margin-bottom: 0.3rem; }
+.qcm-score-num { font-size: 2.2rem; font-weight: 800; }
+.qcm-score-card p { margin: 0.2rem 0 0; color: rgba(255,255,255,0.85); font-size: 0.88rem; }
+
+.qcm-badge { float: right; font-size: 0.72rem; font-weight: 700; padding: 0.15rem 0.5rem; border-radius: 999px; }
+.qcm-badge.good { background: #e0f2e8; color: var(--good); }
+.qcm-badge.bad { background: #fbe6e6; color: var(--bad); }
+
+.qcm-correction-row { border-top: 1px solid var(--border); padding: 0.6rem 0.1rem; }
+.qcm-correction-row:first-of-type { border-top: none; }
+.qcm-correction-head { font-size: 0.9rem; line-height: 1.4; }
+.qcm-tag { display: inline-block; font-size: 0.68rem; font-weight: 700; padding: 0.1rem 0.4rem; border-radius: 6px; margin-left: 0.4rem; vertical-align: middle; }
+.qcm-tag.good { background: #e0f2e8; color: var(--good); }
+.qcm-tag.bad { background: #fbe6e6; color: var(--bad); }
+.qcm-tag.miss { background: #fdf0da; color: var(--warn); }
+.qcm-just { margin: 0.35rem 0 0; font-size: 0.85rem; color: var(--fg); }
+.qcm-trap { margin: 0.3rem 0 0; font-size: 0.83rem; color: var(--warn); }
+.qcm-recall { margin: 0.3rem 0 0; font-size: 0.83rem; color: var(--muted); font-style: italic; }
+.qcm-correction-row.wrong { background: #fff7f5; margin: 0 -0.9rem; padding: 0.6rem 0.9rem; }
+
 .toast-root { position: fixed; left: 0; right: 0; bottom: 5.4rem; z-index: 100; display: flex; flex-direction: column; align-items: center; gap: 0.5rem; pointer-events: none; }
 .toast { background: #16241e; color: #fff; padding: 0.6rem 1rem; border-radius: 999px; font-size: 0.85rem; box-shadow: var(--shadow); opacity: 0; transform: translateY(6px); transition: all 0.2s ease; }
 .toast.show { opacity: 1; transform: translateY(0); }

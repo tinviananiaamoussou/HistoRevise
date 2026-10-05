@@ -1,11 +1,9 @@
-// Edge Function "chat"
-// Répond UNIQUEMENT à partir des documents du coffre-fort (grounding strict),
-// cite le document utilisé, et refuse d'inventer si l'info n'y est pas.
+// Edge Function "grade-qcm"
+// Corrige un QCM déjà généré : compare les réponses de l'étudiant à la grille
+// stockée en base (jamais envoyée au client avant correction), renvoie le détail
+// complet par proposition + le score.
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
-
-const CONTEXT_CHAR_BUDGET = 150000; // sécurité : reste large pour Flash (1M tokens) mais évite un prompt démesuré
-const PER_DOC_CHAR_CAP = 20000;
 
 function corsHeaders() {
   return {
@@ -16,14 +14,13 @@ function corsHeaders() {
 }
 
 Deno.serve(async (req: Request) => {
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders() });
-  }
+  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders() });
 
   try {
-    const { session_id, message } = await req.json();
-    if (!session_id || !message || typeof message !== "string") {
-      return new Response(JSON.stringify({ error: "session_id et message sont requis" }), {
+    const { attempt_id, answers } = await req.json();
+    // answers: { [questionId]: { [label]: boolean } }
+    if (!attempt_id || !answers) {
+      return new Response(JSON.stringify({ error: "attempt_id et answers sont requis" }), {
         status: 400, headers: { ...corsHeaders(), "Content-Type": "application/json" },
       });
     }
@@ -32,101 +29,57 @@ Deno.serve(async (req: Request) => {
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const sb = createClient(supabaseUrl, serviceKey);
 
-    // 1) Clé Gemini depuis le coffre de secrets (Vault), via une fonction RPC dédiée
-    //    (le schéma "vault" n'est pas exposé directement par l'API REST)
-    const { data: geminiKey, error: secretErr } = await sb.rpc("get_secret", { secret_name: "gemini_api_key" });
-    if (secretErr || !geminiKey) {
-      console.error("Secret introuvable", secretErr);
-      return new Response(JSON.stringify({ error: "Clé API non configurée" }), {
-        status: 500, headers: { ...corsHeaders(), "Content-Type": "application/json" },
+    const { data: attempt, error: fetchErr } = await sb
+      .from("qcm_attempts")
+      .select("id, questions, chapter")
+      .eq("id", attempt_id)
+      .single();
+    if (fetchErr || !attempt) {
+      return new Response(JSON.stringify({ error: "QCM introuvable" }), {
+        status: 404, headers: { ...corsHeaders(), "Content-Type": "application/json" },
       });
     }
 
-    // 2) Documents du coffre-fort (grounding)
-    const { data: docs, error: docsErr } = await sb
-      .from("documents")
-      .select("title, chapter, extracted_text")
-      .not("extracted_text", "is", null)
-      .order("created_at", { ascending: false });
-    if (docsErr) throw docsErr;
-
-    let contextStr = "";
-    let budget = CONTEXT_CHAR_BUDGET;
-    for (const d of docs || []) {
-      if (!d.extracted_text || budget <= 0) continue;
-      const chunk = String(d.extracted_text).slice(0, PER_DOC_CHAR_CAP);
-      const block = `\n### Document: "${d.title}" (chapitre: ${d.chapter})\n${chunk}\n`;
-      if (block.length > budget) break;
-      contextStr += block;
-      budget -= block.length;
-    }
-
-    // 3) Historique récent de la session (contexte conversationnel)
-    const { data: history } = await sb
-      .from("chat_messages")
-      .select("role, content")
-      .eq("session_id", session_id)
-      .order("created_at", { ascending: false })
-      .limit(10);
-    const orderedHistory = (history || []).slice().reverse();
-
-    const systemInstruction = `Tu es l'assistant de révision d'HistoRévise, pour des étudiants en médecine au Bénin (histologie et embryologie).
-RÈGLES STRICTES :
-- Réponds UNIQUEMENT à partir des documents fournis ci-dessous (le "coffre-fort"). N'utilise aucune autre connaissance, même si tu la connais.
-- Si l'information demandée ne se trouve pas dans les documents fournis, réponds EXACTEMENT : "Je ne trouve pas cette information dans les documents." Ne complète jamais avec tes propres connaissances.
-- Quand tu réponds à partir d'un document, cite-le clairement : indique le titre du document et reprends le passage pertinent (entre guillemets si c'est court).
-- N'invente jamais un document, une citation, ou un fait.
-- Réponds en français, de façon claire et rigoureuse (niveau concours de médecine), sans simplification excessive.
-
-DOCUMENTS DISPONIBLES :
-${contextStr || "(Aucun document avec texte extrait n'est disponible pour le moment.)"}`;
-
-    const contents = [
-      ...orderedHistory.map((m: { role: string; content: string }) => ({
-        role: m.role === "assistant" ? "model" : "user",
-        parts: [{ text: m.content }],
-      })),
-      { role: "user", parts: [{ text: message }] },
-    ];
-
-    const geminiResp = await fetch(
-      "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent",
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "X-goog-api-key": geminiKey },
-        body: JSON.stringify({
-          contents,
-          systemInstruction: { parts: [{ text: systemInstruction }] },
-          generationConfig: { temperature: 0.2 },
-        }),
-      }
-    );
-
-    if (!geminiResp.ok) {
-      const errText = await geminiResp.text();
-      console.error("Erreur Gemini:", geminiResp.status, errText);
-      return new Response(JSON.stringify({ error: "Erreur de l'IA, réessayez dans un instant." }), {
-        status: 502, headers: { ...corsHeaders(), "Content-Type": "application/json" },
+    let fullyCorrectCount = 0;
+    const corrected = (attempt.questions as any[]).map((q) => {
+      const studentAnswer = answers[q.id] || {};
+      let questionFullyCorrect = true;
+      const propositions = q.propositions.map((p: any) => {
+        const studentSaidTrue = !!studentAnswer[p.label];
+        const isRight = studentSaidTrue === !!p.correct;
+        if (!isRight) questionFullyCorrect = false;
+        return {
+          label: p.label,
+          text: p.text,
+          correct: p.correct,
+          student_said_true: studentSaidTrue,
+          is_right: isRight,
+          justification: p.justification,
+          trap: p.trap || "",
+          concept_recall: p.concept_recall,
+        };
       });
-    }
+      if (questionFullyCorrect) fullyCorrectCount++;
+      return { id: q.id, statement: q.statement, concept: q.concept, propositions, fully_correct: questionFullyCorrect };
+    });
 
-    const geminiData = await geminiResp.json();
-    const answer =
-      geminiData?.candidates?.[0]?.content?.parts?.map((p: { text?: string }) => p.text || "").join("") ||
-      "Je ne trouve pas cette information dans les documents.";
+    await sb.from("qcm_attempts").update({
+      student_answers: answers,
+      score: fullyCorrectCount,
+      completed_at: new Date().toISOString(),
+    }).eq("id", attempt_id);
 
-    // 4) Enregistrer l'historique
-    await sb.from("chat_messages").insert([
-      { session_id, role: "user", content: message },
-      { session_id, role: "assistant", content: answer },
-    ]);
-
-    return new Response(JSON.stringify({ answer }), {
+    return new Response(JSON.stringify({
+      score: fullyCorrectCount,
+      total: corrected.length,
+      chapter: attempt.chapter,
+      questions: corrected,
+    }), {
       headers: { ...corsHeaders(), "Content-Type": "application/json" },
     });
   } catch (e) {
     console.error(e);
-    return new Response(JSON.stringify({ error: String(e?.message || e) }), {
+    return new Response(JSON.stringify({ error: String((e as Error)?.message || e) }), {
       status: 500, headers: { ...corsHeaders(), "Content-Type": "application/json" },
     });
   }

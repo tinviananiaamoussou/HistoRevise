@@ -17,6 +17,8 @@ const TABS = [
 ];
 
 const EDGE_CHAT_URL = SUPABASE_URL + "/functions/v1/chat";
+const EDGE_GENERATE_QCM_URL = SUPABASE_URL + "/functions/v1/generate-qcm";
+const EDGE_GRADE_QCM_URL = SUPABASE_URL + "/functions/v1/grade-qcm";
 const SESSION_KEY = "histo_session_id_v1";
 function getSessionId() {
   let id = localStorage.getItem(SESSION_KEY);
@@ -32,11 +34,6 @@ const PLACEHOLDERS = {
     title: "Atlas 2D",
     icon: "🫀",
     desc: "Explorez une silhouette humaine, organe par organe, avec des coupes histologiques annotées.",
-  },
-  qcm: {
-    title: "QCM",
-    icon: "📝",
-    desc: "Générez des QCM de niveau concours à partir de vos documents, avec correction détaillée.",
   },
   suivi: {
     title: "Suivi",
@@ -480,6 +477,159 @@ async function renderChat(root) {
   });
 }
 
+/* ---------- Écran QCM ---------- */
+async function renderQcm(root) {
+  const sessionId = getSessionId();
+  root.innerHTML = `
+    <div class="screen">
+      ${shellHTML("qcm", "HistoRévise", "QCM — niveau concours")}
+      <main class="main" id="qcm-main">
+        <div class="form-card">
+          <div class="field"><label for="qcm-chapter">Chapitre</label>
+            <select id="qcm-chapter"><option value="">Chargement…</option></select></div>
+          <div class="field"><label for="qcm-count">Nombre de questions</label>
+            <select id="qcm-count">
+              <option value="5">5 questions</option>
+              <option value="10">10 questions</option>
+              <option value="15">15 questions</option>
+              <option value="20">20 questions</option>
+            </select></div>
+          <button class="btn block" id="qcm-generate">Générer le QCM</button>
+        </div>
+        <div id="qcm-body"></div>
+      </main>
+      ${navHTML("qcm")}
+    </div>
+  `;
+
+  let whatsappNumber = "";
+  try {
+    const [{ data: docs }, { data: settings }] = await Promise.all([
+      sb.from("documents").select("chapter"),
+      sb.from("app_settings").select("value").eq("key", "whatsapp_number").maybeSingle(),
+    ]);
+    whatsappNumber = (settings && settings.value) || "";
+    const chapters = [...new Set((docs || []).map((d) => d.chapter).filter(Boolean))].sort();
+    const sel = qs("#qcm-chapter");
+    sel.innerHTML = chapters.length
+      ? chapters.map((c) => `<option value="${esc(c)}">${esc(c)}</option>`).join("")
+      : `<option value="">Aucun chapitre — ajoutez des documents</option>`;
+  } catch (e) {
+    console.error(e);
+    qs("#qcm-chapter").innerHTML = `<option value="">Erreur de chargement</option>`;
+  }
+
+  qs("#qcm-generate").addEventListener("click", async () => {
+    const chapter = qs("#qcm-chapter").value;
+    const count = qs("#qcm-count").value;
+    if (!chapter) { toast("Choisissez un chapitre", true); return; }
+    const btn = qs("#qcm-generate");
+    btn.disabled = true;
+    btn.innerHTML = `<span class="spinner"></span> Génération en cours (peut prendre 20-30s)...`;
+    const body = qs("#qcm-body");
+    body.innerHTML = "";
+    try {
+      const resp = await fetch(EDGE_GENERATE_QCM_URL, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ session_id: sessionId, chapter, num_questions: Number(count) }),
+      });
+      const data = await resp.json();
+      if (!resp.ok) throw new Error(data.error || "Erreur serveur");
+      renderQuizForm(data.attempt_id, data.questions, chapter);
+    } catch (e) {
+      console.error(e);
+      toast("Échec de la génération : " + (e.message || "erreur"), true);
+    }
+    btn.disabled = false;
+    btn.textContent = "Générer le QCM";
+  });
+
+  function renderQuizForm(attemptId, questions, chapter) {
+    const body = qs("#qcm-body");
+    body.innerHTML = `
+      <h3 class="section-title">${esc(chapter)} — ${questions.length} questions</h3>
+      <form id="qcm-quiz-form">
+        ${questions.map((q, qi) => `
+          <div class="qcm-question">
+            <p class="qcm-statement"><strong>${qi + 1}.</strong> ${esc(q.statement)}</p>
+            ${q.propositions.map((p) => `
+              <label class="qcm-prop">
+                <input type="checkbox" data-qid="${q.id}" data-label="${p.label}" />
+                <span><strong>${p.label}.</strong> ${esc(p.text)}</span>
+              </label>
+            `).join("")}
+          </div>
+        `).join("")}
+        <button type="submit" class="btn block">Valider mes réponses</button>
+      </form>
+    `;
+    qs("#qcm-quiz-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const answers = {};
+      qsa('#qcm-quiz-form input[type="checkbox"]').forEach((cb) => {
+        const qid = cb.dataset.qid;
+        answers[qid] = answers[qid] || {};
+        answers[qid][cb.dataset.label] = cb.checked;
+      });
+      const submitBtn = qs('#qcm-quiz-form button[type="submit"]');
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = `<span class="spinner"></span> Correction...`;
+      try {
+        const resp = await fetch(EDGE_GRADE_QCM_URL, {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ attempt_id: attemptId, answers }),
+        });
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(data.error || "Erreur serveur");
+        renderCorrection(data);
+      } catch (err) {
+        console.error(err);
+        toast("Échec de la correction", true);
+        submitBtn.disabled = false;
+        submitBtn.textContent = "Valider mes réponses";
+      }
+    });
+  }
+
+  function renderCorrection(data) {
+    const body = qs("#qcm-body");
+    const pct = Math.round((data.score / data.total) * 100);
+    body.innerHTML = `
+      <div class="qcm-score-card">
+        <div class="qcm-score-num">${data.score}/${data.total}</div>
+        <p>questions entièrement correctes (${pct}%)</p>
+      </div>
+      ${data.questions.map((q, qi) => `
+        <div class="qcm-question">
+          <p class="qcm-statement"><strong>${qi + 1}.</strong> ${esc(q.statement)}
+            ${q.fully_correct ? `<span class="qcm-badge good">✓ Correct</span>` : `<span class="qcm-badge bad">✗ À revoir</span>`}
+          </p>
+          ${q.propositions.map((p) => `
+            <div class="qcm-correction-row ${p.is_right ? "right" : "wrong"}">
+              <div class="qcm-correction-head">
+                <strong>${p.label}.</strong> ${esc(p.text)}
+                <span class="qcm-tag ${p.correct ? "good" : "bad"}">${p.correct ? "Vrai" : "Faux"}</span>
+                ${p.is_right ? "" : `<span class="qcm-tag miss">Votre réponse : ${p.student_said_true ? "Vrai" : "Faux"}</span>`}
+              </div>
+              <p class="qcm-just">${esc(p.justification)}</p>
+              ${p.trap ? `<p class="qcm-trap">⚠️ Piège : ${esc(p.trap)}</p>` : ""}
+              <p class="qcm-recall">💡 ${esc(p.concept_recall)}</p>
+            </div>
+          `).join("")}
+          ${!q.fully_correct && whatsappNumber ? `
+            <a class="btn whatsapp" style="margin-top:0.6rem" target="_blank" rel="noopener"
+               href="https://wa.me/${whatsappNumber.replace(/\D/g, "")}?text=${encodeURIComponent(`Bonjour, j'ai une question sur le chapitre "${data.chapter}" (QCM) :\n\n${q.statement}\n\nJe n'ai pas bien compris cette notion, pouvez-vous m'aider ?`)}">
+              💬 Demander à l'assistant du Professeur
+            </a>` : ""}
+        </div>
+      `).join("")}
+      <button class="btn secondary block" id="qcm-restart">Nouveau QCM</button>
+    `;
+    qs("#qcm-restart").addEventListener("click", () => renderQcm(document.getElementById("app")));
+    body.scrollIntoView({ behavior: "smooth" });
+  }
+}
+
 /* ---------- Routeur ---------- */
 async function render() {
   const root = document.getElementById("app");
@@ -492,7 +642,7 @@ async function render() {
   } else if (path === "/atlas") {
     renderPlaceholder(root, "atlas");
   } else if (path === "/qcm") {
-    renderPlaceholder(root, "qcm");
+    await renderQcm(root);
   } else if (path === "/suivi") {
     renderPlaceholder(root, "suivi");
   } else {

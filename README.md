@@ -14,7 +14,13 @@ Application de révision d'histologie et d'embryologie pour étudiants en médec
   ci-dessous). Fonctionne via une edge function Supabase (`chat`) qui appelle
   l'API Gemini (modèle Flash, gratuit) avec la clé stockée de façon chiffrée
   (Supabase Vault), jamais exposée dans le code de l'app.
-- Navigation à 5 onglets en place ; **Atlas 2D**, **QCM** et **Suivi**
+- **QCM** : l'étudiant choisit un chapitre et un nombre de questions (5 à 20).
+  L'IA génère des QCM niveau concours (5 propositions, plusieurs vraies possibles,
+  distracteurs réalistes, couverture complète du chapitre) via deux edge functions
+  (`generate-qcm`, `grade-qcm`) ; les bonnes réponses restent côté serveur jusqu'à
+  la validation. Correction détaillée par proposition : vrai/faux, justification,
+  piège expliqué, rappel du concept. Bouton WhatsApp sur les questions ratées.
+- Navigation à 5 onglets en place ; **Atlas 2D** et **Suivi**
   affichent encore un écran "Bientôt disponible" — prochaines phases.
 
 ### Configurer le numéro WhatsApp de l'assistant du Professeur
@@ -53,13 +59,16 @@ un CDN.
 
 Mon environnement de développement n'a pas d'accès réseau sortant vers
 Internet (ni vers Supabase, ni vers les CDN, ni vers l'API Gemini). Le
-Coffre-fort a déjà été validé par toi en conditions réelles. **Le Chat IA n'a
-en revanche encore jamais été testé en conditions réelles** — seule sa
-logique d'interface a été testée contre une fausse réponse. Merci de tester
-en premier : pose une question dont la réponse est dans un de tes documents
-(vérifie la citation), puis une question hors-sujet (elle doit répondre
-qu'elle ne trouve pas l'information, jamais inventer) — et dis-moi si
-quelque chose ne va pas.
+Coffre-fort a déjà été validé par toi en conditions réelles. Le **Chat IA** a été testé et validé en conditions réelles. **Le QCM n'a en
+revanche jamais été testé en conditions réelles** — seule sa logique
+d'interface a été testée contre une fausse réponse. Point d'attention
+particulier : la fiabilité du JSON renvoyé par l'IA (mentionnée comme risque
+dans le cahier des charges) — un schéma de sortie strict est imposé à Gemini
+pour limiter ce risque, mais c'est précisément le point à vérifier en
+premier. Génère un QCM sur un chapitre où tu as déjà un document, vérifie que
+les 5 propositions s'affichent bien pour chaque question, valide, et
+contrôle la qualité de la correction (justifications, pièges, niveau de
+difficulté) — et dis-moi si quelque chose ne va pas.
 
 ## Backend Supabase
 
@@ -68,14 +77,19 @@ quelque chose ne va pas.
 - Table `chat_messages` : id, session_id, role, content, created_at
 - Table `app_settings` : key, value (contient `whatsapp_number`)
 - Bucket de stockage `documents` (public)
+- Table `qcm_attempts` : id, session_id, chapter, total, questions (grille complète
+  avec bonnes réponses, côté serveur uniquement), student_answers, score, created_at, completed_at
 - Edge function `chat` : reçoit `{session_id, message}`, construit le contexte à
   partir des documents, appelle Gemini Flash, enregistre l'échange, renvoie la réponse
+- Edge function `generate-qcm` : reçoit `{session_id, chapter, num_questions}`, génère
+  le QCM via Gemini (sortie JSON strict, schéma imposé), stocke la grille complète,
+  renvoie au client uniquement les énoncés (jamais les réponses)
+- Edge function `grade-qcm` : reçoit `{attempt_id, answers}`, corrige côté serveur,
+  renvoie le détail complet (vrai/faux, justification, piège, rappel) + le score
 - Clé API Gemini stockée dans Supabase Vault (secret `gemini_api_key`), lue par
   l'edge function via le rôle de service — jamais exposée côté client
 
 ## Prochaines étapes (phases suivantes, à construire une par une)
-
-- Phase 3 — Génération de QCM (même principe d'edge function, format JSON strict)
 - Phase 4 — Suivi et révision (scores, flashcards, révision espacée) — nécessite
   probablement des comptes étudiants
 - Phase 5 — Atlas 2D (silhouette SVG, coupes annotées)
