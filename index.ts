@@ -31,7 +31,7 @@ Deno.serve(async (req: Request) => {
 
     const { data: attempt, error: fetchErr } = await sb
       .from("qcm_attempts")
-      .select("id, questions, chapter")
+      .select("id, questions, chapter, session_id")
       .eq("id", attempt_id)
       .single();
     if (fetchErr || !attempt) {
@@ -68,6 +68,30 @@ Deno.serve(async (req: Request) => {
       score: fullyCorrectCount,
       completed_at: new Date().toISOString(),
     }).eq("id", attempt_id);
+
+    // Flashcards de révision espacée pour chaque proposition ratée.
+    // En cas d'erreur répétée sur la même proposition, l'intervalle repart à 1 jour (régression).
+    const missedCards = [];
+    for (const q of corrected) {
+      for (const p of q.propositions) {
+        if (!p.is_right) {
+          missedCards.push({
+            session_id: attempt.session_id,
+            chapter: attempt.chapter,
+            concept: q.concept,
+            question_statement: q.statement,
+            proposition_label: p.label,
+            proposition_text: p.text,
+            justification: p.justification,
+            interval_days: 1,
+            next_review_at: new Date().toISOString(),
+          });
+        }
+      }
+    }
+    if (missedCards.length > 0) {
+      await sb.from("flashcards").upsert(missedCards, { onConflict: "session_id,question_statement,proposition_label" });
+    }
 
     return new Response(JSON.stringify({
       score: fullyCorrectCount,

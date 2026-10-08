@@ -35,11 +35,6 @@ const PLACEHOLDERS = {
     icon: "🫀",
     desc: "Explorez une silhouette humaine, organe par organe, avec des coupes histologiques annotées.",
   },
-  suivi: {
-    title: "Suivi",
-    icon: "📊",
-    desc: "Vos scores par chapitre, vos points faibles, et des flashcards de révision espacée.",
-  },
 };
 
 const FILE_ICON = { pdf: "📄", txt: "📃", image: "🖼️" };
@@ -478,12 +473,15 @@ async function renderChat(root) {
 }
 
 /* ---------- Écran QCM ---------- */
-async function renderQcm(root) {
+async function renderQcm(root, presetChapter, focusConcepts) {
   const sessionId = getSessionId();
   root.innerHTML = `
     <div class="screen">
       ${shellHTML("qcm", "HistoRévise", "QCM — niveau concours")}
       <main class="main" id="qcm-main">
+        ${focusConcepts && focusConcepts.length ? `
+          <div class="focus-banner">🎯 QCM ciblé sur vos points faibles : ${focusConcepts.map(esc).join(", ")}</div>
+        ` : ""}
         <div class="form-card">
           <div class="field"><label for="qcm-chapter">Chapitre</label>
             <select id="qcm-chapter"><option value="">Chargement…</option></select></div>
@@ -512,7 +510,7 @@ async function renderQcm(root) {
     const chapters = [...new Set((docs || []).map((d) => d.chapter).filter(Boolean))].sort();
     const sel = qs("#qcm-chapter");
     sel.innerHTML = chapters.length
-      ? chapters.map((c) => `<option value="${esc(c)}">${esc(c)}</option>`).join("")
+      ? chapters.map((c) => `<option value="${esc(c)}" ${c === presetChapter ? "selected" : ""}>${esc(c)}</option>`).join("")
       : `<option value="">Aucun chapitre — ajoutez des documents</option>`;
   } catch (e) {
     console.error(e);
@@ -531,7 +529,10 @@ async function renderQcm(root) {
     try {
       const resp = await fetch(EDGE_GENERATE_QCM_URL, {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ session_id: sessionId, chapter, num_questions: Number(count) }),
+        body: JSON.stringify({
+          session_id: sessionId, chapter, num_questions: Number(count),
+          focus_concepts: chapter === presetChapter ? focusConcepts : undefined,
+        }),
       });
       const data = await resp.json();
       if (!resp.ok) throw new Error(data.error || "Erreur serveur");
@@ -630,11 +631,131 @@ async function renderQcm(root) {
   }
 }
 
+/* ---------- Écran Suivi ---------- */
+async function renderSuivi(root) {
+  const sessionId = getSessionId();
+  root.innerHTML = `
+    <div class="screen">
+      ${shellHTML("suivi", "HistoRévise", "Suivi et révision")}
+      <main class="main" id="suivi-main">
+        <div class="skeleton"></div>
+      </main>
+      ${navHTML("suivi")}
+    </div>
+  `;
+
+  let attempts = [], cards = [];
+  try {
+    const [{ data: a }, { data: c }] = await Promise.all([
+      sb.from("qcm_attempts").select("chapter, score, total, completed_at").eq("session_id", sessionId).not("completed_at", "is", null),
+      sb.from("flashcards").select("*").eq("session_id", sessionId).order("next_review_at", { ascending: true }),
+    ]);
+    attempts = a || [];
+    cards = c || [];
+  } catch (e) {
+    console.error(e);
+  }
+
+  const main = qs("#suivi-main");
+
+  if (attempts.length === 0 && cards.length === 0) {
+    main.innerHTML = `<div class="screen-empty"><div class="ico">📊</div><h2>Rien à afficher pour l'instant</h2><p>Fais un premier QCM : tes scores et tes points à retravailler apparaîtront ici.</p></div>`;
+    return;
+  }
+
+  // Scores par chapitre
+  const byChapter = {};
+  attempts.forEach((a) => {
+    byChapter[a.chapter] = byChapter[a.chapter] || { score: 0, total: 0 };
+    byChapter[a.chapter].score += a.score;
+    byChapter[a.chapter].total += a.total;
+  });
+
+  // Notions / flashcards par chapitre
+  const cardsByChapter = {};
+  cards.forEach((c) => { (cardsByChapter[c.chapter] = cardsByChapter[c.chapter] || []).push(c); });
+
+  const now = new Date();
+  const dueCards = cards.filter((c) => new Date(c.next_review_at) <= now);
+
+  main.innerHTML = `
+    <h3 class="section-title">Scores par chapitre</h3>
+    <div class="score-grid">
+      ${Object.entries(byChapter).map(([chapter, s]) => {
+        const pct = Math.round((s.score / s.total) * 100);
+        const level = pct >= 80 ? "good" : pct >= 50 ? "warn" : "bad";
+        return `<div class="score-chip ${level}"><strong>${pct}%</strong><span>${esc(chapter)}</span></div>`;
+      }).join("")}
+    </div>
+
+    ${dueCards.length > 0 ? `
+      <h3 class="section-title">Flashcards à réviser aujourd'hui (${dueCards.length})</h3>
+      <div id="flashcard-zone"></div>
+    ` : cards.length > 0 ? `<h3 class="section-title">Flashcards</h3><p class="muted-note">Rien à réviser aujourd'hui — prochaines échéances à venir.</p>` : ""}
+
+    ${Object.keys(cardsByChapter).length > 0 ? `
+      <h3 class="section-title">Notions à travailler</h3>
+      ${Object.entries(cardsByChapter).map(([chapter, list]) => {
+        const concepts = [...new Set(list.map((c) => c.concept))];
+        return `
+          <div class="weak-chapter-card">
+            <p class="weak-chapter-title">${esc(chapter)}</p>
+            <ul class="weak-concepts">${concepts.map((c) => `<li>${esc(c)}</li>`).join("")}</ul>
+            <a class="btn secondary block" href="#/qcm?chapter=${encodeURIComponent(chapter)}&focus=${encodeURIComponent(concepts.join("|||"))}">🎯 QCM sur mes points faibles</a>
+          </div>`;
+      }).join("")}
+    ` : ""}
+  `;
+
+  if (dueCards.length > 0) renderFlashcardZone(dueCards, 0);
+
+  function renderFlashcardZone(queue, idx) {
+    const zone = qs("#flashcard-zone");
+    if (!zone) return;
+    if (idx >= queue.length) {
+      zone.innerHTML = `<div class="screen-empty"><div class="ico">✅</div><h2>Révision terminée</h2><p>Reviens demain pour la suite.</p></div>`;
+      return;
+    }
+    const card = queue[idx];
+    zone.innerHTML = `
+      <div class="flashcard" id="flashcard-el">
+        <p class="flashcard-chapter">${esc(card.chapter)} · ${esc(card.concept)}</p>
+        <p class="flashcard-front"><strong>${esc(card.proposition_label)}.</strong> ${esc(card.proposition_text)}</p>
+        <button class="btn secondary block" id="flashcard-flip">Retourner la carte</button>
+        <div class="flashcard-back" id="flashcard-back" hidden>
+          <p>${esc(card.justification)}</p>
+          <div class="flashcard-actions">
+            <button class="btn destructive" id="flashcard-no">Je ne savais pas</button>
+            <button class="btn" id="flashcard-yes">Je savais ✓</button>
+          </div>
+        </div>
+      </div>
+      <p class="muted-note" style="text-align:center;margin-top:0.5rem">${idx + 1} / ${queue.length}</p>
+    `;
+    qs("#flashcard-flip").addEventListener("click", () => {
+      qs("#flashcard-back").hidden = false;
+      qs("#flashcard-flip").hidden = true;
+    });
+    qs("#flashcard-yes").addEventListener("click", () => reviewCard(card, true, queue, idx));
+    qs("#flashcard-no").addEventListener("click", () => reviewCard(card, false, queue, idx));
+  }
+
+  async function reviewCard(card, knew, queue, idx) {
+    const newInterval = knew ? Math.min((card.interval_days || 1) * 2, 60) : 1;
+    const nextReview = new Date(Date.now() + newInterval * 86400000).toISOString();
+    try {
+      await sb.from("flashcards").update({ interval_days: newInterval, next_review_at: nextReview }).eq("id", card.id);
+    } catch (e) { console.error(e); }
+    renderFlashcardZone(queue, idx + 1);
+  }
+}
+
 /* ---------- Routeur ---------- */
 async function render() {
   const root = document.getElementById("app");
   const hash = (location.hash || "#/").replace(/^#/, "");
   const path = hash.split("?")[0];
+  const query = new URLSearchParams(hash.split("?")[1] || "");
   if (path === "/coffre") {
     await renderCoffre(root);
   } else if (path === "/") {
@@ -642,9 +763,11 @@ async function render() {
   } else if (path === "/atlas") {
     renderPlaceholder(root, "atlas");
   } else if (path === "/qcm") {
-    await renderQcm(root);
+    const presetChapter = query.get("chapter") || undefined;
+    const focusConcepts = query.get("focus") ? query.get("focus").split("|||") : undefined;
+    await renderQcm(root, presetChapter, focusConcepts);
   } else if (path === "/suivi") {
-    renderPlaceholder(root, "suivi");
+    await renderSuivi(root);
   } else {
     location.hash = "#/";
   }

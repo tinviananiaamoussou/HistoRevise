@@ -20,8 +20,13 @@ Application de révision d'histologie et d'embryologie pour étudiants en médec
   (`generate-qcm`, `grade-qcm`) ; les bonnes réponses restent côté serveur jusqu'à
   la validation. Correction détaillée par proposition : vrai/faux, justification,
   piège expliqué, rappel du concept. Bouton WhatsApp sur les questions ratées.
-- Navigation à 5 onglets en place ; **Atlas 2D** et **Suivi**
-  affichent encore un écran "Bientôt disponible" — prochaines phases.
+- **Suivi** : scores agrégés par chapitre, flashcards de révision espacée
+  générées automatiquement à partir des propositions ratées en QCM (intervalle
+  qui double à chaque "Je savais", repart à 1 jour sinon), liste des notions à
+  travailler par chapitre, et bouton **"QCM sur mes points faibles"** qui relance
+  un QCM ciblé sur ces notions précises.
+- Navigation à 5 onglets en place ; **Atlas 2D** affiche encore un écran
+  "Bientôt disponible" — dernière phase.
 
 ### Configurer le numéro WhatsApp de l'assistant du Professeur
 
@@ -59,16 +64,16 @@ un CDN.
 
 Mon environnement de développement n'a pas d'accès réseau sortant vers
 Internet (ni vers Supabase, ni vers les CDN, ni vers l'API Gemini). Le
-Coffre-fort a déjà été validé par toi en conditions réelles. Le **Chat IA** a été testé et validé en conditions réelles. **Le QCM n'a en
+Coffre-fort a déjà été validé par toi en conditions réelles. Le **Chat IA** et le **QCM** ont été testés et validés en conditions réelles
+(après correctifs : policy d'écriture manquante sur les réglages, l'IA qui
+récapitulait au lieu de répondre à la dernière question, et surtout le
+modèle `gemini-flash-latest` qui pointait vers une version probablement
+saturée — remplacé par `gemini-2.5-flash`, plus stable). **Le Suivi n'a en
 revanche jamais été testé en conditions réelles** — seule sa logique
-d'interface a été testée contre une fausse réponse. Point d'attention
-particulier : la fiabilité du JSON renvoyé par l'IA (mentionnée comme risque
-dans le cahier des charges) — un schéma de sortie strict est imposé à Gemini
-pour limiter ce risque, mais c'est précisément le point à vérifier en
-premier. Génère un QCM sur un chapitre où tu as déjà un document, vérifie que
-les 5 propositions s'affichent bien pour chaque question, valide, et
-contrôle la qualité de la correction (justifications, pièges, niveau de
-difficulté) — et dis-moi si quelque chose ne va pas.
+d'interface a été testée contre de fausses données. Fais quelques QCM sur un
+même chapitre (pour obtenir un score agrégé et des flashcards), ouvre l'onglet
+Suivi, révise une flashcard, puis essaie "QCM sur mes points faibles" — et
+dis-moi si quelque chose ne va pas.
 
 ## Backend Supabase
 
@@ -81,15 +86,27 @@ difficulté) — et dis-moi si quelque chose ne va pas.
   avec bonnes réponses, côté serveur uniquement), student_answers, score, created_at, completed_at
 - Edge function `chat` : reçoit `{session_id, message}`, construit le contexte à
   partir des documents, appelle Gemini Flash, enregistre l'échange, renvoie la réponse
-- Edge function `generate-qcm` : reçoit `{session_id, chapter, num_questions}`, génère
-  le QCM via Gemini (sortie JSON strict, schéma imposé), stocke la grille complète,
-  renvoie au client uniquement les énoncés (jamais les réponses)
+- Table `flashcards` : id, session_id, chapter, concept, question_statement,
+  proposition_label/text, justification, interval_days, next_review_at — une par
+  proposition ratée en QCM, pour la révision espacée
+- Edge function `generate-qcm` : reçoit `{session_id, chapter, num_questions,
+  focus_concepts?}`, génère le QCM via Gemini (sortie JSON strict, schéma imposé,
+  modèle `gemini-2.5-flash`, 3 tentatives automatiques en cas de surcharge 503),
+  stocke la grille complète, renvoie au client uniquement les énoncés (jamais les
+  réponses). `focus_concepts` priorise les notions déjà ratées (bouton "QCM sur
+  mes points faibles")
 - Edge function `grade-qcm` : reçoit `{attempt_id, answers}`, corrige côté serveur,
-  renvoie le détail complet (vrai/faux, justification, piège, rappel) + le score
+  renvoie le détail complet (vrai/faux, justification, piège, rappel) + le score,
+  et crée/réinitialise une flashcard pour chaque proposition ratée
 - Clé API Gemini stockée dans Supabase Vault (secret `gemini_api_key`), lue par
   l'edge function via le rôle de service — jamais exposée côté client
 
-## Prochaines étapes (phases suivantes, à construire une par une)
+## Prochaine étape
+
+- Phase 5 — Atlas 2D (silhouette SVG cliquable, fiches organes, coupes
+  annotées) — en commençant avec 3 organes d'exemple et des images
+  provisoires, les vraies coupes du Professeur viendront remplacer les
+  provisoires une fois reçues.
 - Phase 4 — Suivi et révision (scores, flashcards, révision espacée) — nécessite
   probablement des comptes étudiants
 - Phase 5 — Atlas 2D (silhouette SVG, coupes annotées)

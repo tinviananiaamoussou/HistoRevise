@@ -212,6 +212,28 @@ datalist {}
 .qcm-recall { margin: 0.3rem 0 0; font-size: 0.83rem; color: var(--muted); font-style: italic; }
 .qcm-correction-row.wrong { background: #fff7f5; margin: 0 -0.9rem; padding: 0.6rem 0.9rem; }
 
+/* --- Suivi --- */
+.focus-banner { background: var(--accent-light); color: var(--accent); border-radius: var(--radius-sm); padding: 0.7rem 0.9rem; font-size: 0.85rem; font-weight: 600; margin-bottom: 0.9rem; }
+
+.score-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; margin-top: 0.6rem; }
+.score-chip { border-radius: var(--radius); padding: 0.8rem; text-align: center; box-shadow: var(--shadow); }
+.score-chip strong { display: block; font-size: 1.4rem; }
+.score-chip span { font-size: 0.78rem; opacity: 0.9; }
+.score-chip.good { background: #e0f2e8; color: var(--good); }
+.score-chip.warn { background: #fdf0da; color: var(--warn); }
+.score-chip.bad { background: #fbe6e6; color: var(--bad); }
+
+.weak-chapter-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); padding: 0.85rem; margin-top: 0.7rem; }
+.weak-chapter-title { font-weight: 700; margin: 0 0 0.4rem; }
+.weak-concepts { margin: 0 0 0.7rem; padding-left: 1.1rem; font-size: 0.85rem; color: var(--muted); }
+
+.flashcard { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); padding: 1.1rem; margin-top: 0.6rem; min-height: 10rem; }
+.flashcard-chapter { font-size: 0.74rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.03em; margin: 0 0 0.6rem; }
+.flashcard-front { font-size: 1rem; line-height: 1.5; margin: 0 0 1rem; }
+.flashcard-back { margin-top: 0.9rem; border-top: 1px solid var(--border); padding-top: 0.9rem; }
+.flashcard-back p { font-size: 0.9rem; line-height: 1.5; margin: 0 0 0.9rem; }
+.flashcard-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; }
+
 .toast-root { position: fixed; left: 0; right: 0; bottom: 5.4rem; z-index: 100; display: flex; flex-direction: column; align-items: center; gap: 0.5rem; pointer-events: none; }
 .toast { background: #16241e; color: #fff; padding: 0.6rem 1rem; border-radius: 999px; font-size: 0.85rem; box-shadow: var(--shadow); opacity: 0; transform: translateY(6px); transition: all 0.2s ease; }
 .toast.show { opacity: 1; transform: translateY(0); }
