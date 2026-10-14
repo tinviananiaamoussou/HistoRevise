@@ -1,0 +1,360 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#101827">
+<title>Atlas 3D — Histologie, Embryologie et Biologie cellulaire</title>
+<style>
+:root{--bg:#0b1220;--panel:#121d2e;--panel2:#17253a;--line:#2a3a52;--text:#edf4ff;--muted:#a9bad0;--cyan:#68d9e8;--gold:#f2c879;--pink:#e8a5d5;--green:#9fe0bd}
+*{box-sizing:border-box}html,body{margin:0;min-height:100%;background:var(--bg);color:var(--text);font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+body{background:radial-gradient(circle at 75% 0%,#1a2c46 0,transparent 38%),var(--bg)}
+button,select{font:inherit}button{cursor:pointer}
+header{padding:22px clamp(16px,4vw,42px) 18px;border-bottom:1px solid var(--line);background:#0b1220e8}
+.eyebrow{color:var(--cyan);font-size:.76rem;font-weight:800;letter-spacing:.14em;text-transform:uppercase}
+h1{font-size:clamp(1.55rem,4vw,2.5rem);line-height:1.1;margin:8px 0 9px;letter-spacing:-.035em}
+header p{margin:0;max-width:800px;color:var(--muted);line-height:1.5}
+.wrap{max-width:1250px;margin:auto;padding:20px clamp(12px,3vw,32px) 36px}
+.tabs{display:flex;gap:8px;overflow-x:auto;padding:2px 0 14px}
+.tab{flex:0 0 auto;background:var(--panel);border:1px solid var(--line);color:var(--muted);border-radius:999px;padding:10px 15px;font-weight:700}
+.tab.active{background:#173447;border-color:var(--cyan);color:#fff}
+.layout{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(270px,.8fr);gap:16px;align-items:stretch}
+.viewer-card,.info-card,.lower-card{background:linear-gradient(145deg,#142137,#0f1929);border:1px solid var(--line);border-radius:20px;overflow:hidden}
+.viewer-head{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:15px 17px;border-bottom:1px solid var(--line)}
+.viewer-head h2{font-size:1rem;margin:0}
+.small{font-size:.82rem;color:var(--muted)}
+.stage{height:clamp(310px,48vw,510px);position:relative;background:radial-gradient(ellipse at center,#1d3550 0,#101a2b 62%,#0b1320 100%);touch-action:pan-y}
+#scene{display:block;width:100%;height:100%;outline:none}
+.scene-hint{position:absolute;left:12px;bottom:12px;max-width:calc(100% - 24px);font-size:.78rem;color:#d4e2f3;background:#0a1322cf;border:1px solid #344861;border-radius:10px;padding:8px 10px;pointer-events:none}
+.scene-controls{display:flex;flex-wrap:wrap;gap:8px;padding:12px;border-top:1px solid var(--line)}
+.control{background:#1a2a40;border:1px solid #344861;color:var(--text);padding:8px 11px;border-radius:10px;font-size:.86rem}
+.control:hover,.control:focus{border-color:var(--cyan)}
+.control.primary{background:#174352;border-color:#287080}
+.info-card{padding:19px}
+.kicker{color:var(--gold);font-weight:800;font-size:.75rem;text-transform:uppercase;letter-spacing:.1em}
+.info-card h2{font-size:1.5rem;line-height:1.15;margin:8px 0 10px}
+.info-card p{color:var(--muted);line-height:1.58;margin:8px 0}
+.pill{display:inline-block;border:1px solid #3c536c;background:#192a40;border-radius:999px;padding:5px 9px;font-size:.75rem;color:#d7e9fb;margin:2px 3px 2px 0}
+.structure-list{display:grid;gap:7px;margin-top:15px}
+.structure{display:flex;align-items:center;gap:9px;text-align:left;width:100%;background:#101b2c;border:1px solid #2a3c53;color:var(--text);border-radius:11px;padding:10px 11px}
+.structure:before{content:"";width:9px;height:9px;border-radius:50%;background:var(--dot,#68d9e8);flex:0 0 auto}
+.structure.active{border-color:var(--cyan);background:#173047}
+.structure span{font-weight:700;font-size:.9rem}
+.structure small{display:block;color:var(--muted);font-weight:400;margin-top:2px}
+.lower{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px}
+.lower-card{padding:17px}
+.lower-card h3{margin:0 0 8px;font-size:1rem}
+.lower-card p,.lower-card li{color:var(--muted);line-height:1.55;font-size:.92rem}
+.lower-card ul{padding-left:20px;margin:8px 0}
+.note{border-left:3px solid var(--gold);padding:10px 12px;background:#2a261b;border-radius:0 10px 10px 0;color:#f5e5c3;font-size:.86rem;line-height:1.5;margin-top:12px}
+.footer{margin-top:18px;color:#8498b2;font-size:.78rem;line-height:1.5;text-align:center}
+.hidden{display:none!important}
+@media(max-width:820px){.layout{grid-template-columns:1fr}.stage{height:390px}.lower{grid-template-columns:1fr}.info-card{padding:16px}}
+@media(max-width:420px){header{padding-top:17px}.stage{height:320px}.viewer-head{align-items:flex-start;flex-direction:column}.scene-controls .control{flex:1 1 auto}}
+</style>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js"}}</script>
+<style>
+.fallback{position:fixed;inset:0;z-index:50;display:none;align-items:center;justify-content:center;padding:24px;background:rgba(11,18,32,.97);text-align:center}
+.fallback.show{display:flex}
+.fallback-box{max-width:420px}
+.fallback-box h2{margin:0 0 10px;font-size:1.15rem}
+.fallback-box p{margin:0 0 14px;color:var(--muted);line-height:1.55;font-size:.92rem}
+.loading-msg{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#d4e2f3;font-size:.9rem;background:rgba(10,19,34,.55);pointer-events:none}
+.loading-msg.hidden{display:none}
+html.embed header{display:none}
+</style>
+<script>
+if(/[?&]embed=1/.test(location.search))document.documentElement.classList.add('embed');
+</script>
+</head>
+<body>
+<header>
+  <div class="eyebrow">Atlas pédagogique interactif</div>
+  <h1>Explorer le vivant en 3D</h1>
+  <p>Histologie · Embryologie · Biologie cellulaire — manipule les modèles, sélectionne les structures et relie leur forme à leur fonction.</p>
+</header>
+<div class="fallback" id="fallback" role="alert"><div class="fallback-box"><h2 id="fallbackTitle">Affichage 3D indisponible</h2><p id="fallbackText"></p><button class="control primary" id="fallbackRetry" type="button">Réessayer</button></div></div>
+<main class="wrap">
+  <nav class="tabs" aria-label="Domaines de l'atlas">
+    <button class="tab active" data-domain="cell">Biologie cellulaire</button>
+    <button class="tab" data-domain="histo">Histologie</button>
+    <button class="tab" data-domain="embryo">Embryologie</button>
+  </nav>
+  <div class="layout">
+    <section class="viewer-card" aria-label="Visualisation 3D">
+      <div class="viewer-head">
+        <h2 id="viewerTitle">Cellule animale — vue schématique</h2>
+        <span class="small" id="viewerStatus">Modèle pédagogique interactif</span>
+      </div>
+      <div class="stage"><canvas id="scene" aria-label="Modèle 3D manipulable"></canvas><div class="loading-msg" id="loadingMsg">Chargement du moteur 3D…</div><div class="scene-hint">Glisse pour faire tourner · pince ou utilise les boutons pour zoomer · touche une structure dans la liste</div></div>
+      <div class="scene-controls">
+        <button class="control" id="resetView">Réinitialiser la vue</button>
+        <button class="control" id="zoomIn" aria-label="Zoom avant">Zoom +</button>
+        <button class="control" id="zoomOut" aria-label="Zoom arrière">Zoom −</button>
+        <button class="control primary" id="autoRotate">Rotation auto : arrêt</button>
+      </div>
+    </section>
+    <aside class="info-card">
+      <div class="kicker" id="topicKicker">Biologie cellulaire</div>
+      <h2 id="topicTitle">La cellule animale</h2>
+      <p id="topicIntro">La cellule est l'unité structurale et fonctionnelle fondamentale du vivant. Explore quelques organites représentés ici de façon simplifiée.</p>
+      <div id="topicTags"><span class="pill">Membrane</span><span class="pill">Cytoplasme</span><span class="pill">Organites</span></div>
+      <div class="structure-list" id="structureList"></div>
+      <div class="note" id="scienceNote">Modèle schématique : les dimensions, couleurs et positions ne reproduisent pas exactement une cellule réelle.</div>
+    </aside>
+  </div>
+  <div class="lower">
+    <section class="lower-card">
+      <h3 id="detailTitle">À retenir</h3>
+      <p id="detailText">Sélectionne une structure pour afficher sa fonction et son intérêt biologique.</p>
+    </section>
+    <section class="lower-card">
+      <h3>Comment étudier efficacement</h3>
+      <ul>
+        <li>Observe d'abord la forme générale et l'organisation spatiale.</li>
+        <li>Sélectionne chaque structure et reformule sa fonction sans regarder.</li>
+        <li>Compare ensuite le modèle aux schémas de cours et aux préparations microscopiques.</li>
+      </ul>
+    </section>
+  </div>
+  <div class="footer">Prototype d'Atlas 3D — contenu pédagogique introductif. Les modèles sont schématiques et ne remplacent pas les lames histologiques, les images de référence ni les enseignements validés. Le moteur 3D nécessite une connexion Internet.</div>
+</main>
+<script type="module">
+const $ = (id) => document.getElementById(id);
+function showFallback(title, text){
+  $('fallbackTitle').textContent = title; $('fallbackText').textContent = text;
+  $('fallback').classList.add('show'); $('loadingMsg').classList.add('hidden');
+  document.documentElement.dataset.state = 'fallback';
+}
+$('fallbackRetry').addEventListener('click', () => location.reload());
+function webglAvailable(){
+  try{ const c = document.createElement('canvas'); return !!(c.getContext('webgl2') || c.getContext('webgl')); }
+  catch(e){ return false; }
+}
+(async function boot(){
+if(!webglAvailable()){
+  showFallback('Affichage 3D non pris en charge', "Cet appareil ou ce navigateur ne permet pas l'affichage 3D (WebGL). Utilise l'onglet « Lames histologiques 2D » ou essaie avec un autre navigateur.");
+  return;
+}
+let THREE, OrbitControls, watchdog;
+watchdog = setTimeout(() => showFallback('Chargement trop long', "Le moteur 3D n'a pas pu être chargé. Vérifie ta connexion Internet puis réessaie."), 20000);
+try{
+  const mods = await Promise.all([
+    import('three'),
+    import('https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/controls/OrbitControls.js')
+  ]);
+  THREE = mods[0]; OrbitControls = mods[1].OrbitControls;
+}catch(err){
+  clearTimeout(watchdog);
+  console.warn('Chargement 3D impossible :', err);
+  showFallback('Moteur 3D indisponible', "Le moteur 3D se charge depuis Internet et n'a pas pu être récupéré. Vérifie ta connexion puis réessaie.");
+  return;
+}
+clearTimeout(watchdog);
+const canvas = $('scene');
+let renderer;
+try{
+  renderer = new THREE.WebGLRenderer({canvas, antialias:true, alpha:true});
+}catch(err){
+  showFallback('Affichage 3D non pris en charge', "Impossible d'initialiser WebGL sur cet appareil. Utilise l'onglet « Lames histologiques 2D ».");
+  return;
+}
+canvas.addEventListener('webglcontextlost', (e) => { e.preventDefault(); stopLoop(); showFallback('Affichage 3D interrompu', "Le contexte graphique a été perdu (mémoire ou veille de l'appareil). Appuie sur « Réessayer »."); });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+renderer.setSize(canvas.clientWidth, canvas.clientHeight, false);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.setClearColor(0x000000, 0);
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(42, canvas.clientWidth/canvas.clientHeight, 0.1, 100);
+camera.position.set(0, 1.4, 8.8);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true; controls.dampingFactor = .07; controls.minDistance = 3.8; controls.maxDistance = 15;
+scene.add(new THREE.HemisphereLight(0xcfeaff, 0x1b2940, 2.1));
+const keyLight = new THREE.DirectionalLight(0xffffff, 2.2); keyLight.position.set(5,7,8); scene.add(keyLight);
+const fillLight = new THREE.PointLight(0x66cce8, 65, 30); fillLight.position.set(-5,2,4); scene.add(fillLight);
+const world = new THREE.Group(); scene.add(world);
+const raycaster = new THREE.Raycaster(); const pointer = new THREE.Vector2();
+let domain = 'cell', selectedKey = null, autoRotate = false, pickables = [], originalMaterials = new Map();
+const mat = (color, roughness=.55, metalness=0, transparent=false, opacity=1) => new THREE.MeshStandardMaterial({color,roughness,metalness,transparent,opacity,side:THREE.DoubleSide});
+const sphereGeo = new THREE.SphereGeometry(1,32,22);
+function meshSphere(name, color, pos, scale, opts={}) {
+  const m = new THREE.Mesh(sphereGeo, mat(color, opts.roughness ?? .5, 0, opts.transparent ?? false, opts.opacity ?? 1));
+  m.name=name; m.position.set(...pos); m.scale.set(...scale); m.userData.key=opts.key || name; world.add(m); pickables.push(m); originalMaterials.set(m,m.material); return m;
+}
+function addLabel(text,pos,color='#edf4ff') {
+  // CSS2D is deliberately avoided to keep this a single-file, dependency-light module.
+  const marker = new THREE.Mesh(new THREE.SphereGeometry(.055,12,8), new THREE.MeshBasicMaterial({color}));
+  marker.position.set(...pos); marker.userData.decorative=true; world.add(marker);
+}
+function clearWorld(){while(world.children.length){const o=world.children.pop(); if(o.geometry)o.geometry.dispose(); if(o.material){if(Array.isArray(o.material))o.material.forEach(m=>m.dispose());else o.material.dispose();}}pickables=[];originalMaterials.clear();selectedKey=null;}
+const data = {
+ cell: {
+  title:'La cellule animale', viewer:'Cellule animale — vue schématique', intro:'La cellule est l’unité structurale et fonctionnelle fondamentale du vivant. Explore quelques organites représentés ici de façon simplifiée.',
+  note:'Modèle schématique : les dimensions, couleurs et positions ne reproduisent pas exactement une cellule réelle.',
+  items:[
+   ['membrane','Membrane plasmique','Délimite la cellule et régule les échanges avec le milieu extracellulaire.','#62d9e8'],
+   ['nucleus','Noyau','Contient la majeure partie de l’ADN et participe à la régulation de l’expression génétique.','#b8a0ff'],
+   ['mito','Mitochondrie','Produit une grande partie de l’ATP par la respiration cellulaire aérobie.','#f0a15b'],
+   ['golgi','Appareil de Golgi','Modifie, trie et distribue certaines protéines et certains lipides.','#ef91c8'],
+   ['er','Réticulum endoplasmique','Le réticulum rugueux participe à la synthèse des protéines ; le lisse intervient notamment dans la synthèse lipidique.','#72d5a0'],
+   ['lysosome','Lysosome','Compartiment riche en enzymes qui participent à la dégradation intracellulaire.','#e5d16d']
+  ]
+ },
+ histo:{
+  title:'Épithélium simple', viewer:'Organisation schématique d’un épithélium', intro:'Les épithéliums sont constitués de cellules étroitement associées, reposant sur une lame basale. Cette scène illustre une organisation générale, pas un tissu diagnostique.',
+  note:'Les cellules sont représentées de façon schématique. L’identification d’un tissu réel exige l’observation de critères histologiques et du contexte de la coupe.',
+  items:[
+   ['surface','Face apicale','Surface tournée vers la lumière d’un organe ou vers l’extérieur.','#62d9e8'],
+   ['cells','Cellules épithéliales','Cellules jointives assurant selon le tissu la protection, l’absorption, la sécrétion ou les échanges.','#f0b1a1'],
+   ['nucleus','Noyaux','La forme, la position et le nombre des noyaux sont des critères d’observation utiles.','#b8a0ff'],
+   ['basal','Lame basale','Matrice extracellulaire spécialisée soutenant l’épithélium et participant aux échanges avec le tissu sous-jacent.','#f0cf78'],
+   ['connective','Tissu conjonctif sous-jacent','Soutient et nourrit de nombreux épithéliums par l’intermédiaire des tissus et de la vascularisation sous-jacents.','#72d5a0']
+  ]
+ },
+ embryo:{
+  title:'Développement précoce', viewer:'Stades précoces — représentation schématique', intro:'Le développement embryonnaire se déroule par étapes coordonnées. Cette scène présente des représentations simplifiées de la segmentation et de la formation d’une structure creuse.',
+  note:'Les stades sont des modèles didactiques et non une reconstitution chronologique à l’échelle. Les délais varient selon l’espèce et le contexte de référence.',
+  items:[
+   ['zygote','Zygote','Cellule issue de la fécondation, avant les divisions de segmentation.','#62d9e8'],
+   ['cleavage','Segmentation','Série de divisions mitotiques qui augmente le nombre de blastomères sans croissance globale importante au début.','#f0a15b'],
+   ['blastocoel','Blastocèle / cavité','Cavité qui se forme au cours de certains stades précoces du développement, selon l’espèce.','#b8a0ff'],
+   ['blastomeres','Blastomères','Cellules produites par les divisions de segmentation.','#ef91c8'],
+   ['gastrulation','Gastrulation','Processus qui établit les feuillets embryonnaires et l’organisation fondamentale du plan corporel.','#72d5a0']
+  ]
+ }
+};
+function addTorus(name,color,pos,r,tube,key){const m=new THREE.Mesh(new THREE.TorusGeometry(r,tube,12,64),mat(color,.42));m.position.set(...pos);m.name=name;m.userData.key=key||name;world.add(m);pickables.push(m);originalMaterials.set(m,m.material);return m;}
+function buildCell(){
+ meshSphere('cytoplasm',0x4d9bb4,[0,0,0],[2.35,1.65,1.65],{transparent:true,opacity:.18,key:'membrane'});
+ // outer membrane as wireframe sphere
+ const shell=new THREE.Mesh(new THREE.SphereGeometry(2.35,36,24),new THREE.MeshBasicMaterial({color:0x62d9e8,wireframe:true,transparent:true,opacity:.26}));
+ shell.scale.set(1, .70, .70); shell.userData.key='membrane';shell.name='membrane-shell';world.add(shell);pickables.push(shell);originalMaterials.set(shell,shell.material);
+ meshSphere('nucleus',0x8f77df,[-.15,.1,.15],[.88,.85,.82],{key:'nucleus'});
+ meshSphere('nucleolus',0xd6baff,[-.35,.2,.55],[.25,.25,.25],{key:'nucleus'});
+ for(let i=0;i<3;i++){
+  const a=i*2.1; const x=Math.cos(a)*1.35, y=Math.sin(a)*.8, z=Math.sin(a*1.7)*.85;
+  const m=meshSphere('mitochondrion'+i,0xe99551,[x,y,z],[.48,.23,.25],{key:'mito'});
+  m.rotation.z=a*.5;
+  // cristae-like curved marks
+  for(let j=-1;j<=1;j++){const line=new THREE.Mesh(new THREE.TorusGeometry(.12,.018,6,20),mat(0xffd2a1));line.position.set(x+j*.12,y,z+.22);line.scale.set(1.3,.55,1);line.userData.decorative=true;world.add(line);}
+ }
+ for(let i=0;i<4;i++){const a=i*1.5;const x=Math.cos(a)*1.0+.2,y=Math.sin(a)*.9-.1,z=Math.cos(a*1.2)*.7;const m=meshSphere('golgi'+i,0xe68dc6,[x,y,z],[.22,.5,.22],{key:'golgi'});m.rotation.z=a;}
+ for(let i=0;i<5;i++){const a=i*1.2;const m=meshSphere('er'+i,0x65c99a,[Math.cos(a)*.9,Math.sin(a)*.65,Math.sin(a*2)*.8],[.12,.52,.12],{key:'er'});m.rotation.z=a;}
+ for(let i=0;i<4;i++){const a=i*1.8;meshSphere('lysosome'+i,0xe4cd62,[Math.cos(a)*1.65,Math.sin(a)*.95,Math.cos(a)*.55],[.17,.17,.17],{key:'lysosome'});}
+}
+function buildHisto(){
+ // basement membrane and connective substrate
+ const base=new THREE.Mesh(new THREE.BoxGeometry(5.1,.18,2.5),mat(0xd7b66d));base.position.set(0,-.95,0);base.name='basement';base.userData.key='basal';world.add(base);pickables.push(base);originalMaterials.set(base,base.material);
+ const tissue=new THREE.Mesh(new THREE.BoxGeometry(5.1,.55,2.5),mat(0x5f9b85,.8,0,true,.42));tissue.position.set(0,-1.36,0);tissue.name='connective';tissue.userData.key='connective';world.add(tissue);pickables.push(tissue);originalMaterials.set(tissue,tissue.material);
+ for(let i=0;i<7;i++){
+  const x=(i-3)*.68;
+  const cell=meshSphere('epithelial'+i,0xe7a79d,[x,-.27,0],[.29,.65,.62],{key:'cells'});
+  meshSphere('nucleus'+i,0x9d7ad8,[x,-.25,.53],[.13,.2,.1],{key:'nucleus'});
+  addTorus('apical'+i,0x62d9e8,[x,.37,0],.25,.025,'surface');
+ }
+}
+function buildEmbryo(){
+ // show a large segmented embryo on left and a hollow sphere / gastrulation illustration on right
+ const stage = selectedKey;
+ if(stage==='zygote'){
+  meshSphere('zygote',0x66cfe0,[-1.35,0,0],[1.05,1.05,1.05],{key:'zygote'});
+  meshSphere('pronucleus',0xb9a4ff,[-1.55,.12,.85],[.28,.28,.22],{key:'zygote'});
+ } else if(stage==='blastocoel'){
+  meshSphere('outer blastocyst',0x7ac9d4,[-1.3,0,0],[1.25,1.25,1.25],{transparent:true,opacity:.2,key:'blastocoel'});
+  // hollow appearance from inner sphere and ring of blastomeres
+  for(let i=0;i<13;i++){const a=i*Math.PI*2/13;const b=meshSphere('blastomere'+i,0x8dd9e5,[-1.3+Math.cos(a)*1.05,Math.sin(a)*1.05,Math.sin(a*2)*.28],[.24,.24,.24],{key:'blastomeres'});}
+  meshSphere('cavity',0x182e4b,[-1.3,0,.1],[.65,.65,.65],{transparent:true,opacity:.55,key:'blastocoel'});
+ } else if(stage==='gastrulation'){
+  meshSphere('embryonic disc',0xe9a5ce,[-1.3,0,0],[1.1,.45,.8],{key:'gastrulation'});
+  meshSphere('upper layer',0x8ccde0,[-1.3,.24,.05],[.98,.24,.7],{key:'gastrulation'});
+  meshSphere('lower layer',0xe8c67a,[-1.3,-.22,.05],[.95,.2,.68],{key:'gastrulation'});
+  meshSphere('invagination',0x5578b5,[-1.3,-.05,.55],[.28,.36,.22],{key:'gastrulation'});
+ } else {
+  const count=stage==='cleavage'?8:12;
+  for(let i=0;i<count;i++){
+   const a=i*Math.PI*2/count, ring=i<Math.ceil(count/2)?0:1;
+   const pos=[-1.4+Math.cos(a)*(ring?.43:.58),Math.sin(a)*(ring?.43:.58),((i%3)-1)*.18];
+   meshSphere('blastomere'+i, i%2?0x68cddd:0xd49bd2,pos,[.38,.38,.38],{key:'cleavage'});
+  }
+ }
+ // comparison inset of a hollow early-stage sphere
+ meshSphere('stage overview',0x4b83a0,[1.45,.05,0],[.95,.95,.95],{transparent:true,opacity:.12,key:'blastocoel'});
+ for(let i=0;i<12;i++){const a=i*Math.PI*2/12;meshSphere('overview cell'+i,0x73cbd7,[1.45+Math.cos(a)*.82,.05+Math.sin(a)*.82,0],[.18,.18,.18],{key:'blastomeres'});}
+ meshSphere('cavity overview',0x14273f,[1.45,.05,.08],[.52,.52,.52],{transparent:true,opacity:.7,key:'blastocoel'});
+}
+function build(){
+ clearWorld();
+ if(domain==='cell')buildCell();
+ if(domain==='histo')buildHisto();
+ if(domain==='embryo')buildEmbryo();
+ // center the view on all models
+ controls.target.set(domain==='embryo'?0:0,0,0);
+ camera.position.set(0,1.1,domain==='histo'?8.5:8.2); controls.update();
+ renderList();
+}
+function renderList(){
+ const d=data[domain]; $('viewerTitle').textContent=d.viewer; $('topicKicker').textContent=domain==='cell'?'Biologie cellulaire':domain==='histo'?'Histologie':'Embryologie';
+ $('topicTitle').textContent=d.title; $('topicIntro').textContent=d.intro; $('scienceNote').textContent=d.note;
+ $('topicTags').innerHTML=(domain==='cell'?['Cellule eucaryote','Organites','Fonctions']:domain==='histo'?['Épithélium','Lame basale','Tissu sous-jacent']:['Segmentation','Blastomères','Gastrulation']).map(t=>`<span class="pill">${t}</span>`).join('');
+ $('structureList').innerHTML='';
+ d.items.forEach(([key,name,desc,color])=>{
+  const b=document.createElement('button');b.className='structure'+(selectedKey===key?' active':'');b.style.setProperty('--dot',color);b.innerHTML=`<span>${name}<small>${desc}</small></span>`;b.addEventListener('click',()=>selectStructure(key));$('structureList').appendChild(b);
+ });
+ if(!selectedKey || !d.items.some(i=>i[0]===selectedKey))selectStructure(d.items[0][0],false);
+}
+function selectStructure(key,rebuild=true){
+ selectedKey=key;
+ const d=data[domain], item=d.items.find(i=>i[0]===key)||d.items[0];
+ $('detailTitle').textContent=item[1];$('detailText').textContent=item[2];
+ [...$('structureList').children].forEach((b,i)=>b.classList.toggle('active',d.items[i][0]===key));
+ if(domain==='embryo' && rebuild) { build(); return; }
+ highlight(key);
+}
+function highlight(key){
+ for(const o of pickables){const original=originalMaterials.get(o);if(!original)continue;
+  if(o.userData.key===key){o.material=original.clone();o.material.emissive=new THREE.Color(0x174f61);o.material.emissiveIntensity=.65;}
+  else o.material=original;
+ }
+}
+function pointerPick(event){
+ const rect=renderer.domElement.getBoundingClientRect();
+ pointer.x=((event.clientX-rect.left)/rect.width)*2-1;
+ pointer.y=-((event.clientY-rect.top)/rect.height)*2+1;
+ raycaster.setFromCamera(pointer,camera);
+ const hits=raycaster.intersectObjects(pickables,false).filter(h=>!h.object.userData.decorative);
+ if(hits.length){const key=hits[0].object.userData.key;if(data[domain].items.some(i=>i[0]===key))selectStructure(key);}
+}
+canvas.addEventListener('pointerup',e=>{if(Math.abs((e.clientX||0)-(canvas._downX||0))<5&&Math.abs((e.clientY||0)-(canvas._downY||0))<5)pointerPick(e);});
+canvas.addEventListener('pointerdown',e=>{canvas._downX=e.clientX;canvas._downY=e.clientY;});
+document.querySelectorAll('.tab').forEach(b=>b.addEventListener('click',()=>{
+ document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x===b));
+ domain=b.dataset.domain; selectedKey=data[domain].items[0][0]; build();
+}));
+$('resetView').addEventListener('click',()=>{camera.position.set(0,1.1,domain==='histo'?8.5:8.2);controls.target.set(0,0,0);controls.update();});
+$('zoomIn').addEventListener('click',()=>{camera.position.multiplyScalar(.86);controls.update();});
+$('zoomOut').addEventListener('click',()=>{camera.position.multiplyScalar(1.16);controls.update();});
+$('autoRotate').addEventListener('click',()=>{autoRotate=!autoRotate;$('autoRotate').textContent='Rotation auto : '+(autoRotate?'marche':'arrêt');});
+function resize(){const w=canvas.clientWidth,h=canvas.clientHeight;if(!w||!h)return;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();}
+if('ResizeObserver' in window)new ResizeObserver(resize).observe(canvas);else window.addEventListener('resize',resize);
+let rafId = null, lost = false;
+function animate(){
+  rafId = null;
+  if(document.hidden || lost) return;          // aucune boucle de rendu en arrière-plan
+  rafId = requestAnimationFrame(animate);
+  if(autoRotate) world.rotation.y += .003;
+  controls.update();
+  renderer.render(scene, camera);
+  window.__atlas3dFrames = (window.__atlas3dFrames || 0) + 1;
+}
+function startLoop(){ if(rafId === null && !document.hidden && !lost) rafId = requestAnimationFrame(animate); }
+function stopLoop(){ lost = true; if(rafId !== null){ cancelAnimationFrame(rafId); rafId = null; } }
+document.addEventListener('visibilitychange', () => { if(document.hidden){ if(rafId !== null){ cancelAnimationFrame(rafId); rafId = null; } } else startLoop(); });
+selectedKey=data[domain].items[0][0];build();
+$('loadingMsg').classList.add('hidden');
+document.documentElement.dataset.state = 'ready';
+window.__atlas3dReady = true;
+animate();
+})();
+</script>
+</body>
+</html>

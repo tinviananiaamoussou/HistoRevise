@@ -11,7 +11,7 @@ if (window.pdfjsLib) {
 const TABS = [
   { key: "chat", path: "#/", label: "Chat IA", icon: "💬" },
   { key: "coffre", path: "#/coffre", label: "Coffre-fort", icon: "🗂️" },
-  { key: "atlas", path: "#/atlas", label: "Atlas 2D", icon: "🫀" },
+  { key: "atlas", path: "#/atlas", label: "Atlas", icon: "🫀" },
   { key: "qcm", path: "#/qcm", label: "QCM", icon: "📝" },
   { key: "suivi", path: "#/suivi", label: "Suivi", icon: "📊" },
 ];
@@ -752,6 +752,7 @@ async function renderSuivi(root) {
 
 /* ---------- Routeur ---------- */
 async function render() {
+  if (typeof AtlasModule !== "undefined") AtlasModule.teardown(); // détruit l'iframe 3D en quittant l'Atlas
   const root = document.getElementById("app");
   const hash = (location.hash || "#/").replace(/^#/, "");
   const path = hash.split("?")[0];
@@ -761,7 +762,8 @@ async function render() {
   } else if (path === "/") {
     await renderChat(root);
   } else if (path === "/atlas") {
-    renderPlaceholder(root, "atlas");
+    if (typeof AtlasModule !== "undefined") await AtlasModule.render(root, query);
+    else renderPlaceholder(root, "atlas");
   } else if (path === "/qcm") {
     const presetChapter = query.get("chapter") || undefined;
     const focusConcepts = query.get("focus") ? query.get("focus").split("|||") : undefined;

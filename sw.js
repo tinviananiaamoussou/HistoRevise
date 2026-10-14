@@ -1,9 +1,11 @@
-const CACHE_NAME = "histo-revise-v1";
+const CACHE_NAME = "histo-revise-v2";
 const ASSETS = [
   "./",
   "./index.html",
   "./style.css",
   "./app.js",
+  "./atlas.js",
+  "./atlas-3d.html",
   "./config.js",
   "./manifest.json",
   "./icon-192.png",

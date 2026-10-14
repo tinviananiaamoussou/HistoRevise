@@ -25,8 +25,13 @@ Application de révision d'histologie et d'embryologie pour étudiants en médec
   qui double à chaque "Je savais", repart à 1 jour sinon), liste des notions à
   travailler par chapitre, et bouton **"QCM sur mes points faibles"** qui relance
   un QCM ciblé sur ces notions précises.
-- Navigation à 5 onglets en place ; **Atlas 2D** affiche encore un écran
-  "Bientôt disponible" — dernière phase.
+- **Atlas** (Phase 5, en attente de validation avant mise en ligne) : deux
+  sous-onglets — **Lames histologiques 2D** (3 organes fixes : peau, rein,
+  intestin ; repères à observer ; galerie de VRAIES coupes, état vide explicite
+  tant qu'aucune n'a été ajoutée) et **Exploration 3D** (modèles schématiques
+  Three.js dans une iframe isolée, détruite en quittant le sous-onglet).
+  L'ajout et la suppression d'une coupe exigent un **code d'ajout** (voir
+  « Atlas — mise en service »).
 
 ### Configurer le numéro WhatsApp de l'assistant du Professeur
 
@@ -101,12 +106,34 @@ dis-moi si quelque chose ne va pas.
 - Clé API Gemini stockée dans Supabase Vault (secret `gemini_api_key`), lue par
   l'edge function via le rôle de service — jamais exposée côté client
 
+## Atlas — mise en service (à faire dans cet ordre, après validation)
+
+1. Exécuter `supabase/atlas.sql` en entier dans Supabase → SQL Editor (non
+   destructif ; relançable). Si Supabase refuse les policies sur
+   `storage.objects` (« must be owner »), les créer via Storage → Policies avec
+   les mêmes noms et conditions.
+2. Créer le secret Vault **`atlas_contributor_code`** (Vault → Add secret) avec
+   le code d'ajout choisi. Le code n'est écrit dans aucun fichier du projet.
+3. Exécuter `supabase/atlas_verify.sql` (lecture seule) et contrôler les
+   résultats attendus indiqués en commentaires.
+4. Remplacer sur GitHub (ou l'hébergeur) : `app.js`, `index.html`, `style.css`,
+   `sw.js`, `README.md` et AJOUTER `atlas.js`, `atlas-3d.html`. Recharger
+   l'app deux fois (le service worker passe en `histo-revise-v2`).
+
+Qui peut quoi : lecture publique des organes, des coupes et des images ;
+ajout/suppression d'une coupe = uniquement avec le code (fonctions SQL
+`atlas_add_section` / `atlas_delete_section`) ; aucune modification directe des
+tables ; dépôt d'image ouvert mais limité (jpeg/png/webp, 5 Mo) et invisible
+tant qu'aucune coupe ne le référence ; chaque ajout/suppression est journalisé
+(`atlas_audit_log`, lisible par l'admin Supabase uniquement).
+
+Limites assumées (V1) : pas de « modifier » (supprimer + réajouter) ; le code
+est partagé (pas de comptes) ; un fichier envoyé puis abandonné peut rester
+orphelin (retirable) ; pas de limitation de débit sur les tentatives de code.
+Le moteur 3D nécessite Internet (chargé depuis jsDelivr) ; en cas d'échec ou
+d'absence de WebGL, un message de repli s'affiche.
+
 ## Prochaine étape
 
-- Phase 5 — Atlas 2D (silhouette SVG cliquable, fiches organes, coupes
-  annotées) — en commençant avec 3 organes d'exemple et des images
-  provisoires, les vraies coupes du Professeur viendront remplacer les
-  provisoires une fois reçues.
-- Phase 4 — Suivi et révision (scores, flashcards, révision espacée) — nécessite
-  probablement des comptes étudiants
-- Phase 5 — Atlas 2D (silhouette SVG, coupes annotées)
+- Remplacer/compléter les coupes avec les vraies images du Professeur.
+- Restreindre l'accès (comptes) avant une diffusion large, si besoin.
