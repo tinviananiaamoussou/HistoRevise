@@ -1,4 +1,4 @@
-const CACHE_NAME = "histo-revise-v2";
+const CACHE_NAME = "histo-revise-v3";
 const ASSETS = [
   "./",
   "./index.html",

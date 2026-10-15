@@ -32,6 +32,15 @@ Application de révision d'histologie et d'embryologie pour étudiants en médec
   Three.js dans une iframe isolée, détruite en quittant le sous-onglet).
   L'ajout et la suppression d'une coupe exigent un **code d'ajout** (voir
   « Atlas — mise en service »).
+- **Atlas 3D — biologie cellulaire (étape 1 de l'enrichissement)** : cellule
+  animale procédurale (noyau avec enveloppe, pores, chromatine et nucléole ;
+  REG avec ribosomes ; REL ; Golgi ; mitochondries à crêtes ; lysosomes ;
+  peroxysomes ; centrosome ; microtubules ; microfilaments ; vésicules ;
+  membrane à microvillosités). 16 structures sélectionnables (liste, puces ou
+  toucher) : mise en surbrillance, étiquette flottante, description brève et
+  fiche Structure / Fonction / À retenir. Boutons « Isoler » (atténue les
+  autres structures) et « Coupe » (retire la moitié proche de la coque).
+  Histologie et embryologie : inchangées (étapes 2 et 3).
 
 ### Configurer le numéro WhatsApp de l'assistant du Professeur
 
