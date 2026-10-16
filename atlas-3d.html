@@ -159,7 +159,7 @@ if(/[?&]embed=1/.test(location.search))document.documentElement.classList.add('e
     </section>
     <section class="lower-card" id="proofCard"><h3 id="proofTitle">Comment étudier efficacement</h3><ul id="proofList"></ul></section>
   </div>
-  <div class="footer">Prototype d'Atlas 3D — contenu pédagogique introductif. Les modèles sont schématiques et ne remplacent pas les lames histologiques, les images de référence ni les enseignements validés. Le moteur 3D nécessite une connexion Internet. <span id="ver">Version du modèle : v10 · cellule détaillée, histologie (35 coupes), embryologie (18 stades).</span></div>
+  <div class="footer">Prototype d'Atlas 3D — contenu pédagogique introductif. Les modèles sont schématiques et ne remplacent pas les lames histologiques, les images de référence ni les enseignements validés. Le moteur 3D nécessite une connexion Internet. <span id="ver">Version du modèle : v11 · cellule détaillée, histologie (47 coupes), embryologie (18 stades).</span></div>
 </main>
 <script type="module">
 
@@ -1136,7 +1136,7 @@ const HISTO_SETS = [
 ];
 /* Les éléments de chaque modèle de paroi : couches (de la lumière vers l'extérieur) puis éléments décoratifs */
 function finishHisto(){
-const GROUP_ORDER = ['Tissus fondamentaux', 'Dent', 'Appareil digestif', 'Appareil circulatoire', 'Appareil respiratoire', 'Appareil urinaire', 'Appareil génital masculin', 'Appareil génital féminin', 'Appareil tégumentaire'];
+const GROUP_ORDER = ['Tissus fondamentaux', 'Dent', 'Appareil digestif', 'Appareil circulatoire', 'Appareil respiratoire', 'Appareil urinaire', 'Appareil génital masculin', 'Appareil génital féminin', 'Appareil tégumentaire', 'Organes lymphoïdes', 'Organes des sens', 'Glandes endocrines'];
 HISTO_SETS.sort((a, b) => GROUP_ORDER.indexOf(a.group) - GROUP_ORDER.indexOf(b.group));
 HISTO_SETS.forEach((s) => {
   if(s.layers){ const lay = s.layers; const seen = {}; const items = [];
@@ -1715,6 +1715,356 @@ HISTO_SETS.push(
     ],
     extras: [X('rugae', 'Plis (rugae)', 0xf8c8d4, 'Plis transversaux de la muqueuse qui permettent la distension.', 'Disparaissent à la distension.')],
     deco: (w) => { radial('rugae', new THREE.CapsuleGeometry(0.07, 1.6, 3, 8), 0xf8c8d4, 6, w.radii[0][0] - 0.04, w, { rough: 0.5 }, true); } },
+);
+
+
+/* ======== Histologie : glandes, cœur, organes lymphoïdes, organes des sens, endocrines, mammaire ======== */
+const lumenOf = (g, key, x, y, z, r) => M(key, new THREE.SphereGeometry(r, 12, 10), 0xfdf6fb, { rough: 0.4, op: 0.95, p: [x, y, z] }, g);
+function acinusAt(g, key, x, z, r, color, nuclei){
+  const y = 0.3;
+  M(key, new THREE.SphereGeometry(r, 18, 14), color, { rough: 0.5, op: 0.92, p: [x, y, z] }, g);
+  lumenOf(g, key, x, y, z, r * 0.3);
+  const R = mulberry32(Math.round(x * 31 + z * 17 + 5));
+  for(let k = 0; k < nuclei; k++){ const a = k * 6.28 / nuclei + R(); M(key, new THREE.SphereGeometry(r * 0.17, 8, 6), 0x2a1a50, { rough: 0.5, p: [x + Math.cos(a) * r * 0.86, y - 0.05, z + Math.sin(a) * r * 0.86], s: [1, 0.8, 1] }, g); }
+}
+function ductTube(g, key, pts, r, color){ M(key, tubeOf(pts.map((p) => new THREE.Vector3(p[0], p[1], p[2])), r, 30), color, { rough: 0.5 }, g); }
+
+/* -- Glande salivaire -- */
+function buildSalivary(){
+  const g = G(), R = mulberry32(51);
+  M('septum', new THREE.BoxGeometry(9.2, 0.14, 5.4), 0xf0e1c0, { rough: 0.8, p: [0, -0.05, 0] }, g);
+  [[-3.6, -0.9], [-3.0, 0.5], [-3.9, 0.9], [-2.6, -0.5], [-2.2, 1.0]].forEach((p) => acinusAt(g, 'acin_s', p[0], p[1], 0.36, 0xa86ac0, 5));
+  [[3.3, -0.6], [2.7, 0.7], [3.9, 0.5], [2.2, -0.3]].forEach((p) => acinusAt(g, 'acin_m', p[0], p[1], 0.38, 0xf3e6f2, 3));
+  [[-0.5, -0.6], [0.5, 0.5], [-0.3, 0.8], [0.8, -0.5]].forEach((p) => { acinusAt(g, 'acin_mx', p[0], p[1], 0.38, 0xf3e6f2, 2); M('acin_mx', new THREE.SphereGeometry(0.4, 14, 10, 0, Math.PI, 0, 1.2), 0xa86ac0, { rough: 0.5, double: true, p: [p[0], 0.3, p[1]], r: [0.6, 0.0, 0] }, g); });
+  INST('myoep', new THREE.CapsuleGeometry(0.02, 0.22, 3, 5), 0x4a8a6a, 14, (i, d) => { const a = i * 0.9; d.position.set(-3.1 + Math.cos(a) * 0.4, 0.45, -0.2 + Math.sin(a) * 0.4); d.rotation.set(R() * 3, R() * 3, 0); }, { rough: 0.5 }, g);
+  [[-3.3, -0.2], [-0.1, 0.0], [2.9, 0.0]].forEach((p) => ductTube(g, 'interc', [[p[0], 0.3, p[1]], [p[0], 0.25, p[1] + 1.1], [p[0] * 0.8, 0.2, 1.7]], 0.045, 0xf4d6a0));
+  ductTube(g, 'strie_d', [[-3.2, 0.2, 1.7], [-1.5, 0.2, 1.9], [0, 0.2, 1.8], [1.6, 0.2, 1.9], [3.0, 0.2, 1.7]], 0.14, 0xf08a8a);
+  ductTube(g, 'excreteur', [[-4.2, 0.3, 2.2], [-1.6, 0.35, 2.3], [1.6, 0.35, 2.3], [4.2, 0.3, 2.2]], 0.2, 0xf6e0b0);
+  INST('septum', new THREE.SphereGeometry(0.28, 12, 10), 0xfff3b8, 5, (i, d) => { d.position.set(-4.2 + i * 0.35, 0.2, -2.3); }, { rough: 0.5, op: 0.9 }, g);
+}
+
+/* -- Pancréas -- */
+function buildPancreas(){
+  const g = G(), R = mulberry32(53);
+  M('septum_p', new THREE.BoxGeometry(9.0, 0.14, 5.4), 0xf0e1c0, { rough: 0.8, p: [0, -0.05, 0] }, g);
+  [[-3.6, -0.7], [-3.0, 0.7], [-3.9, 0.5], [-2.4, -0.2], [-2.3, 1.1], [3.2, -0.6], [3.9, 0.3], [2.9, 0.9], [2.4, -0.2], [3.7, 1.2]].forEach((p) => { acinusAt(g, 'acin_p', p[0], p[1], 0.36, 0xa86ac0, 4); M('centro', new THREE.SphereGeometry(0.05, 8, 6), 0xf6e8d0, { rough: 0.4, p: [p[0], 0.3, p[1]] }, g); });
+  M('ilot', new THREE.SphereGeometry(1.15, 24, 18), 0xf8e8d8, { op: 0.35, rough: 0.5, depthWrite: false, p: [0, 0.45, 0], container: true, prio: 1 }, g);
+  INST('beta', new THREE.SphereGeometry(0.12, 8, 6), 0x5a8fe0, 36, (i, d) => { const a = R() * 6.28, rr = R() * 0.65; d.position.set(Math.cos(a) * rr, 0.45 + (R() - 0.5) * 0.5, Math.sin(a) * rr); }, { rough: 0.5 }, g);
+  INST('alpha', new THREE.SphereGeometry(0.11, 8, 6), 0xf0a040, 14, (i, d) => { const a = i * 0.45; d.position.set(Math.cos(a) * 0.95, 0.45 + (R() - 0.5) * 0.4, Math.sin(a) * 0.95); }, { rough: 0.5 }, g);
+  INST('delta', new THREE.SphereGeometry(0.1, 8, 6), 0x6fbf6a, 7, (i, d) => { const a = i * 0.9 + 0.3; d.position.set(Math.cos(a) * 0.8, 0.45, Math.sin(a) * 0.8); }, { rough: 0.5 }, g);
+  const caps = []; for(let k = 0; k < 5; k++){ const a = k * 1.3; caps.push(tubeOf([new THREE.Vector3(Math.cos(a) * 1.1, 0.5, Math.sin(a) * 1.1), new THREE.Vector3(Math.cos(a + 0.8) * 0.5, 0.55, Math.sin(a + 0.8) * 0.5), new THREE.Vector3(Math.cos(a + 1.6) * 1.05, 0.5, Math.sin(a + 1.6) * 1.05)], 0.035, 24)); }
+  M('capill_i', mergeGeos(caps), 0xd9534f, { rough: 0.5 }, g);
+  ductTube(g, 'canal_p', [[-3.0, 0.25, -1.6], [-1.0, 0.25, -1.9], [1.5, 0.25, -1.9], [3.2, 0.25, -1.5]], 0.14, 0xf4d6a0);
+  [[-3.0, -0.7], [3.2, -0.6]].forEach((p) => ductTube(g, 'canal_p', [[p[0], 0.3, p[1]], [p[0], 0.28, -1.0], [p[0], 0.25, -1.6]], 0.05, 0xf4d6a0));
+}
+
+/* -- Cœur : paroi du ventricule -- */
+const HEART_LAYERS = [
+  L('endocarde', 'Endocarde', 0.05, 0xf6c9c9, 'Endothélium reposant sur un mince conjonctif sous-endothélial ; tapisse les cavités et forme les valves.', 'Continu avec l\'endothélium des gros vaisseaux.'),
+  L('purkinje', 'Sous-endocarde (fibres de Purkinje)', 0.1, 0xf6e6c8, 'Conjonctif sous-endocardique contenant les fibres de Purkinje : cellules larges et pâles, riches en glycogène, du système de conduction.', 'Fibres de Purkinje : plus larges et plus claires que les cardiomyocytes voisins.'),
+  L('myocarde', 'Myocarde', 0.6, 0xc0505c, 'Cardiomyocytes striés ramifiés à noyau central, reliés par des disques intercalaires ; couche la plus épaisse.', 'Le ventricule gauche est environ 2 à 3 fois plus épais que le droit.'),
+  L('epicarde', 'Épicarde (péricarde viscéral)', 0.12, 0xe8dcc0, 'Mésothélium sur conjonctif lâche contenant du tissu adipeux et les vaisseaux coronaires.', 'Lame viscérale du péricarde séreux.'),
+];
+const HEART_SET = { key: 'coeur', name: 'Cœur (paroi du ventricule)', abbr: 'Cœur', group: 'Appareil circulatoire', color: '#c0505c',
+  intro: 'Paroi cardiaque en trois tuniques : endocarde, myocarde et épicarde.',
+  preuve: ['Myocarde : fibres striées ramifiées à noyau central et disques intercalaires.', 'Endocarde (endothélium) en dedans ; épicarde (mésothélium, graisse, vaisseaux) en dehors.', 'Fibres de Purkinje sous-endocardiques : grandes cellules pâles.', 'Paroi du ventricule gauche nettement plus épaisse que celle du droit.'],
+  rIn: 0.9, Lh: 2.4, view: [4.4, 4.6, 5.8], layers: HEART_LAYERS,
+  extras: [
+    X('coron', 'Artères coronaires', 0xd9534f, 'Vaisseaux de l\'épicarde qui nourrissent le myocarde ; pénètrent ensuite dans la paroi.', 'Une obstruction coronaire cause un infarctus (nécrose du myocarde).'),
+    X('adip', 'Tissu adipeux épicardique', 0xfff3b8, 'Adipocytes qui entourent les coronaires dans l\'épicarde.', 'Très présent dans le sillon auriculo-ventriculaire.'),
+  ],
+  deco: (w) => { const R = wallRnd(55), rP = (w.radii[1][0] + w.radii[1][1]) / 2, rE = (w.radii[3][0] + w.radii[3][1]) / 2;
+    INST('purkinje', new THREE.SphereGeometry(0.07, 10, 8), 0xf6e6c8, 24, (i, d) => { polar(d, rP, R.a(), R.y(w.L)); d.scale.set(1.2, 1, 1.2); }, { rough: 0.5 }, w.g);
+    radial('myocarde', new THREE.CapsuleGeometry(0.03, 0.4, 3, 5), 0xa8404c, 80, (w.radii[2][0] + w.radii[2][1]) / 2, w, { rough: 0.5 });
+    INST('adip', new THREE.SphereGeometry(0.06, 8, 6), 0xfff3b8, 22, (i, d) => { polar(d, rE + 0.01, R.a(0.1), R.y(w.L)); }, { rough: 0.4 }, w.g);
+    const cv = []; for(let i = 0; i < 3; i++){ const th = R.a(0.3), pts = []; for(let k = 0; k <= 8; k++) pts.push(new THREE.Vector3(rE * Math.sin(th + k * 0.03), -0.9 + i * 0.9 + k * 0.1, rE * Math.cos(th + k * 0.03))); cv.push(tubeOf(pts, 0.035, 20)); }
+    M('coron', mergeGeos(cv), 0xd9534f, { rough: 0.5 }, w.g); } };
+
+/* -- Thymus -- */
+function buildThymus(){
+  const g = G(), R = mulberry32(57);
+  const lob = (x, z, r) => { M('cortex_t', new THREE.CylinderGeometry(r, r, 0.22, 28), 0x5a3f9a, { rough: 0.7, p: [x, 0, z] }, g);
+    M('medulle_t', new THREE.CylinderGeometry(r * 0.52, r * 0.52, 0.26, 24), 0xe2cdee, { rough: 0.6, p: [x, 0.01, z] }, g);
+    M('hassall', new THREE.SphereGeometry(0.13, 12, 10), 0xf6c6d6, { rough: 0.5, p: [x + r * 0.15, 0.2, z] }, g); M('hassall', new THREE.SphereGeometry(0.07, 10, 8), 0xffffff, { rough: 0.5, p: [x + r * 0.15, 0.22, z] }, g);
+    M('hassall', new THREE.SphereGeometry(0.1, 10, 8), 0xf6c6d6, { rough: 0.5, p: [x - r * 0.2, 0.2, z + r * 0.18] }, g); };
+  lob(-1.6, 0.0, 1.0); lob(0.5, -0.6, 1.1); lob(1.0, 1.4, 0.9); lob(-0.9, 1.7, 0.8);
+  [[-0.5, 0.4, 0.0], [0.1, 0.5, 1.3], [-1.9, 1.3, 0.3], [1.9, 0.4, 0.5]].forEach((s) => { M('capsule_t', new THREE.BoxGeometry(1.4, 0.3, 0.07), 0xe6cfa0, { rough: 0.6, p: [s[0], 0.0, s[1]], r: [0, s[2], 0] }, g); });
+  M('capsule_t', new THREE.TorusGeometry(3.0, 0.05, 8, 60), 0xe6cfa0, { rough: 0.6, p: [0, 0.0, 0.3], r: [Math.PI / 2, 0, 0], s: [1.0, 0.8, 1] }, g);
+  INST('adip_t', new THREE.SphereGeometry(0.16, 10, 8), 0xfff3b8, 10, (i, d) => { const a = i * 0.65; d.position.set(Math.cos(a) * 3.3, 0.1, 0.3 + Math.sin(a) * 2.6); }, { rough: 0.4, op: 0.9 }, g);
+}
+
+/* -- Rate -- */
+function buildSpleen(){
+  const g = G(), R = mulberry32(59);
+  M('rouge', new THREE.CylinderGeometry(2.7, 2.7, 0.3, 48), 0xc0393a, { rough: 0.8, p: [0, 0, 0], s: [1, 1, 0.78] }, g);
+  M('capsule_r', new THREE.TorusGeometry(2.7, 0.07, 8, 70), 0xe6cfa0, { rough: 0.6, p: [0, 0.14, 0], r: [Math.PI / 2, 0, 0], s: [1, 0.78, 1] }, g);
+  [0.3, 1.0, 1.9, 2.6, 3.4, 4.3, 5.1].forEach((a) => { M('capsule_r', new THREE.BoxGeometry(1.0, 0.3, 0.06), 0xe6cfa0, { rough: 0.6, p: [Math.cos(a) * 2.1, 0.02, Math.sin(a) * 1.7], r: [0, -a, 0] }, g); });
+  INST('rouge', new THREE.CapsuleGeometry(0.03, 0.4, 3, 5), 0xe07a7a, 70, (i, d) => { d.position.set((R() - 0.5) * 4.6, 0.2, (R() - 0.5) * 3.2); d.rotation.set(1.57, 0, R() * 3); }, { rough: 0.5 }, g);
+  [[-1.3, 0.2], [1.0, -0.6], [0.4, 0.9], [-0.3, -1.0]].forEach((p) => {
+    M('zone_m', new THREE.CylinderGeometry(0.74, 0.74, 0.28, 24), 0xc7a2e0, { rough: 0.6, op: 0.7, depthWrite: false, p: [p[0], 0.06, p[1]] }, g);
+    M('blanche', new THREE.CylinderGeometry(0.56, 0.56, 0.32, 24), 0x5a3f9a, { rough: 0.6, p: [p[0], 0.08, p[1]] }, g);
+    M('blanche', new THREE.CylinderGeometry(0.22, 0.22, 0.34, 18), 0xe6dcf5, { rough: 0.6, p: [p[0] + 0.12, 0.09, p[1] + 0.05] }, g);
+    M('art_c', new THREE.SphereGeometry(0.1, 10, 8), 0xd9534f, { rough: 0.5, p: [p[0] - 0.22, 0.28, p[1] - 0.12] }, g); });
+}
+
+/* -- Œil (coupe) -- */
+function buildEye(){
+  const g = G(), H = [Math.PI, Math.PI];
+  const shell = (key, r, th0, th1, color, o) => M(key, new THREE.SphereGeometry(r, 36, 20, H[0], H[1], th0, th1 - th0), color, Object.assign({ double: true, rough: 0.6 }, o || {}), g);
+  shell('sclere', 1.5, 0.55, Math.PI, 0xf2efe6); shell('choroide', 1.43, 0.6, Math.PI, 0x4a2a24); shell('retine', 1.37, 0.7, Math.PI, 0xf0c46a, { op: 0.95 });
+  M('cornee', new THREE.SphereGeometry(1.0, 28, 16, H[0], H[1], 0, 0.88), 0xbfe3ff, { double: true, op: 0.55, depthWrite: false, rough: 0.2, p: [0, 0.72, 0] }, g);
+  M('cristallin', new THREE.SphereGeometry(0.5, 24, 16, H[0], H[1], 0, Math.PI), 0xcfe8f5, { double: true, op: 0.85, rough: 0.2, p: [0, 0.35, 0], s: [1, 0.55, 1] }, g);
+  const ir = new THREE.RingGeometry(0.22, 0.95, 36, 1, 0, Math.PI); ir.rotateX(-Math.PI / 2); M('iris', ir, 0x5a8f6a, { double: true, rough: 0.5, p: [0, 0.62, 0] }, g);
+  const cb = new THREE.TorusGeometry(1.2, 0.13, 8, 36, Math.PI); cb.rotateX(Math.PI / 2); M('corps_cil', cb, 0xd9a070, { rough: 0.6, p: [0, 0.55, 0], r: [0, Math.PI, 0] }, g);
+  M('vitre', new THREE.SphereGeometry(1.34, 28, 18, H[0], H[1], 0.75, Math.PI - 0.75), 0xdff3fb, { double: true, op: 0.2, depthWrite: false, rough: 0.3, container: true, prio: 1 }, g);
+  M('nerf_opt', new THREE.CylinderGeometry(0.2, 0.2, 1.3, 16), 0xf6efdc, { rough: 0.6, p: [0.35, -2.0, -0.18] }, g);
+  M('nerf_opt', new THREE.CircleGeometry(0.18, 16), 0xfff2c8, { rough: 0.6, double: true, p: [0.35, -1.36, -0.02], r: [Math.PI / 2, 0, 0] }, g);
+  M('macula', new THREE.CircleGeometry(0.12, 16), 0xd9b030, { rough: 0.6, double: true, p: [-0.15, -1.34, -0.03], r: [Math.PI / 2, 0, 0] }, g);
+}
+
+/* -- Cochlée (coupe de l'organe de Corti) -- */
+function buildCochlea(){
+  const g = G(), D3 = 0.5, mat = { double: true, rough: 0.6, op: 0.9 };
+  const ext = (pts, z) => new THREE.ExtrudeGeometry(shapeOf(pts), { depth: D3, bevelEnabled: false });
+  const at = (k, geo, color, o) => { geo.translate(0, 0, -D3 / 2); return M(k, geo, color, Object.assign({}, mat, o || {}), g); };
+  at('sv', ext([[0.4, 0.0], [3.0, 1.1], [3.0, 2.5], [0.4, 2.5]]), 0xbfe3ff, { op: 0.35, depthWrite: false });
+  at('cc', ext([[0.4, 0.0], [3.0, 0.0], [3.0, 1.1]]), 0xf0d8a0, { op: 0.55, depthWrite: false });
+  at('st', ext([[0.4, 0.0], [3.0, 0.0], [3.0, -1.9], [0.4, -1.9]]), 0x9fd0ec, { op: 0.35, depthWrite: false });
+  M('mbasilaire', new THREE.BoxGeometry(2.6, 0.07, D3 + 0.05), 0xe8c27a, { rough: 0.6, p: [1.7, 0, 0] }, g);
+  M('reissner', new THREE.BoxGeometry(2.8, 0.03, D3 + 0.05), 0xdcdcdc, { rough: 0.5, p: [1.7, 0.55, 0], r: [0, 0, Math.atan2(1.1, 2.6)] }, g);
+  M('modiolus', new THREE.BoxGeometry(0.7, 4.4, D3 + 0.1), 0xe6d3b3, { rough: 0.7, p: [0.05, 0.3, 0] }, g);
+  M('strie_v', new THREE.BoxGeometry(0.16, 1.1, D3), 0xd9534f, { rough: 0.5, p: [3.05, 0.55, 0] }, g);
+  INST('ganglion', new THREE.SphereGeometry(0.11, 10, 8), 0xe9c46a, 8, (i, d) => { d.position.set(0.1 + (i % 2) * 0.2, -0.5 - Math.floor(i / 2) * 0.3, (i % 3 - 1) * 0.1); }, { rough: 0.5 }, g);
+  M('corti', new THREE.SphereGeometry(0.1, 12, 10), 0x6fa8e0, { rough: 0.5, p: [1.15, 0.2, 0] }, g);
+  [[1.7, 0.25], [1.88, 0.25], [2.06, 0.25]].forEach((p, i) => { M('corti', new THREE.CapsuleGeometry(0.06, 0.18, 4, 8), 0xe58a3a, { rough: 0.5, p: [p[0], p[1], (i - 1) * 0.12] }, g); });
+  M('corti', new THREE.CapsuleGeometry(0.03, 0.4, 4, 8), 0xe6d3b3, { rough: 0.5, p: [1.35, 0.18, 0], r: [0, 0, -0.5] }, g);
+  M('corti', new THREE.CapsuleGeometry(0.03, 0.4, 4, 8), 0xe6d3b3, { rough: 0.5, p: [1.5, 0.18, 0], r: [0, 0, 0.5] }, g);
+  const tm = shapeOf([[0.5, 0.45], [0.5, 0.7], [2.1, 0.6], [2.2, 0.45], [1.0, 0.4]]);
+  M('tectoriale', new THREE.ExtrudeGeometry(tm, { depth: D3 - 0.05, bevelEnabled: false }), 0xc9a0e0, { rough: 0.6, double: true, op: 0.9, p: [0, 0, -(D3 - 0.05) / 2] }, g);
+  [[0.3, -0.55], [0.55, -0.3], [0.2, -0.1]].forEach((p) => { ductTube(g, 'ganglion', [[p[0], p[1], 0.1], [0.9, 0.0, 0.0], [1.15, 0.12, 0.0]], 0.02, 0xf0d890); });
+}
+
+/* -- Endocrines : thyroïde, parathyroïde, surrénale, hypophyse -- */
+function buildThyroid(){
+  const g = G(), R = mulberry32(61);
+  M('stroma_th', new THREE.BoxGeometry(8.6, 0.14, 5.2), 0xf0e1c0, { rough: 0.8, p: [0, -0.05, 0] }, g);
+  const pos = [[-2.8, -1.2, 0.8], [-1.2, -0.6, 0.6], [0.4, -1.3, 0.75], [2.2, -0.7, 0.7], [-2.2, 0.8, 0.7], [-0.4, 1.0, 0.85], [1.4, 1.2, 0.65], [3.0, 0.9, 0.6]];
+  pos.forEach((p) => { M('thyrocyte', new THREE.SphereGeometry(p[2], 24, 18), 0xe8a1b5, { op: 0.75, rough: 0.5, depthWrite: false, p: [p[0], p[2] * 0.7, p[1]] }, g);
+    M('colloide', new THREE.SphereGeometry(p[2] * 0.78, 20, 14), 0xf6c6d6, { rough: 0.5, op: 0.95, p: [p[0], p[2] * 0.7, p[1]] }, g); });
+  INST('cellC', new THREE.SphereGeometry(0.1, 10, 8), 0xf7f0e0, 9, (i, d) => { d.position.set(-3.4 + i * 0.85 + (R() - 0.5) * 0.3, 0.12, (R() - 0.5) * 1.2); }, { rough: 0.4 }, g);
+  const c = []; for(let k = 0; k < 5; k++) c.push(tubeOf([new THREE.Vector3(-3.5 + k * 1.7, 0.1, -0.1), new THREE.Vector3(-3.0 + k * 1.7, 0.1, 0.5), new THREE.Vector3(-2.6 + k * 1.7, 0.1, 0.0)], 0.04, 20));
+  M('capill_th', mergeGeos(c), 0xd9534f, { rough: 0.5 }, g);
+}
+function buildParathyroid(){
+  const g = G(), R = mulberry32(63);
+  M('capsule_pt', new THREE.BoxGeometry(6.4, 0.1, 4.2), 0xe6cfa0, { rough: 0.7, p: [0, -0.05, 0] }, g);
+  INST('principale', new THREE.SphereGeometry(0.15, 10, 8), 0xb48ad6, 110, (i, d) => { d.position.set((R() - 0.5) * 5.8, 0.15, (R() - 0.5) * 3.6); }, { rough: 0.5 }, g);
+  INST('oxyphile', new THREE.SphereGeometry(0.25, 12, 10), 0xf08a8a, 10, (i, d) => { d.position.set((R() - 0.5) * 5.0, 0.25, (R() - 0.5) * 3.0); }, { rough: 0.5 }, g);
+  INST('adip_pt', new THREE.SphereGeometry(0.38, 12, 10), 0xfff3b8, 7, (i, d) => { d.position.set(-2.6 + i * 0.9, 0.35, 1.7 - (i % 2) * 0.4); }, { rough: 0.4, op: 0.9 }, g);
+  const c = []; for(let k = 0; k < 6; k++) c.push(tubeOf([new THREE.Vector3(-2.7 + k * 1.05, 0.12, -1.6), new THREE.Vector3(-2.5 + k * 1.05, 0.12, 0), new THREE.Vector3(-2.7 + k * 1.05, 0.12, 1.4)], 0.04, 20));
+  M('capill_pt', mergeGeos(c), 0xd9534f, { rough: 0.5 }, g);
+}
+function buildAdrenal(){
+  const g = G(), W = 5.2, Dp = 2.4, R = mulberry32(65); let y = 1.2;
+  const slab = (key, h, color, o) => { const m = M(key, new THREE.BoxGeometry(W, h, Dp), color, Object.assign({ rough: 0.7, p: [0, y - h / 2, 0] }, o || {}), g); y -= h; return m; };
+  slab('capsule_s', 0.08, 0xe6cfa0); const yG = y; slab('glomerulee', 0.3, 0xe8b070); const yF = y; slab('fasciculee', 0.85, 0xf5e6c0); const yR = y; slab('reticulee', 0.35, 0xc08060); const yM = y; slab('chromaffine', 0.9, 0x8a4a5a);
+  INST('glomerulee', new THREE.TorusGeometry(0.16, 0.035, 6, 14, Math.PI), 0xc08a40, 16, (i, d) => { d.position.set(-2.3 + i * 0.3, yG - 0.12, 1.22); }, { rough: 0.5 }, g);
+  INST('fasciculee', new THREE.CylinderGeometry(0.06, 0.06, 0.8, 8), 0xe3c880, 26, (i, d) => { d.position.set(-2.4 + i * 0.19, yF - 0.43, 1.22); }, { rough: 0.5 }, g);
+  INST('reticulee', new THREE.CapsuleGeometry(0.035, 0.2, 3, 5), 0x8a5a3a, 22, (i, d) => { d.position.set(-2.4 + i * 0.22, yR - 0.18, 1.22); d.rotation.z = (R() - 0.5) * 2.5; }, { rough: 0.5 }, g);
+  INST('chromaffine', new THREE.SphereGeometry(0.13, 10, 8), 0xb070a0, 24, (i, d) => { d.position.set(-2.4 + (i % 12) * 0.4, yM - 0.25 - Math.floor(i / 12) * 0.3, 1.22); }, { rough: 0.5 }, g);
+  M('vein_c', new THREE.CylinderGeometry(0.26, 0.26, Dp + 0.1, 18), 0x4a6fd0, { rough: 0.5, op: 0.9, p: [0, yM - 0.5, 0], r: [Math.PI / 2, 0, 0] }, g);
+}
+function buildPituitary(){
+  const g = G(), R = mulberry32(67);
+  M('adeno', new THREE.SphereGeometry(1, 30, 22), 0xf1d9d0, { rough: 0.7, op: 0.55, depthWrite: false, p: [-1.2, 0, 0], s: [1.6, 1.15, 1.15], container: true, prio: 1 }, g);
+  INST('acido', new THREE.SphereGeometry(0.11, 8, 6), 0xf08a8a, 30, (i, d) => { d.position.set(-1.2 + (R() - 0.5) * 2.4, (R() - 0.5) * 1.5, (R() - 0.5) * 1.5); }, { rough: 0.5 }, g);
+  INST('baso', new THREE.SphereGeometry(0.11, 8, 6), 0x6a5acd, 14, (i, d) => { d.position.set(-1.2 + (R() - 0.5) * 2.4, (R() - 0.5) * 1.5, (R() - 0.5) * 1.5); }, { rough: 0.5 }, g);
+  INST('chromo', new THREE.SphereGeometry(0.12, 8, 6), 0xece8dd, 22, (i, d) => { d.position.set(-1.2 + (R() - 0.5) * 2.4, (R() - 0.5) * 1.5, (R() - 0.5) * 1.5); }, { rough: 0.5 }, g);
+  M('neuro', new THREE.SphereGeometry(1, 28, 20), 0xdcd2e8, { rough: 0.7, op: 0.8, p: [1.45, 0, 0], s: [0.95, 0.9, 0.9] }, g);
+  const ax = []; for(let k = 0; k < 7; k++) ax.push(tubeOf([new THREE.Vector3(1.0 + R() * 0.2, 1.8, (k - 3) * 0.08), new THREE.Vector3(1.3, 0.8, (k - 3) * 0.2), new THREE.Vector3(1.5 + R() * 0.4, -0.2 + (R() - 0.5) * 0.6, (k - 3) * 0.2)], 0.02, 20));
+  M('axones', mergeGeos(ax), 0xe9c46a, { rough: 0.5 }, g);
+  INST('herring', new THREE.SphereGeometry(0.08, 8, 6), 0xf2a63a, 8, (i, d) => { d.position.set(1.3 + R() * 0.8, (R() - 0.5) * 1.2, (R() - 0.5) * 0.8); }, { rough: 0.5 }, g);
+  M('intermed', new THREE.BoxGeometry(0.16, 1.7, 1.4), 0xcbb8e8, { rough: 0.6, p: [0.45, 0, 0] }, g);
+  INST('rathke', new THREE.SphereGeometry(0.09, 8, 6), 0xfdf6fb, 4, (i, d) => { d.position.set(0.45, -0.5 + i * 0.35, 0.1); }, { rough: 0.4, op: 0.9 }, g);
+  M('tige', new THREE.CylinderGeometry(0.22, 0.22, 1.4, 16), 0xf0e1c0, { rough: 0.6, p: [0.3, 1.5, 0] }, g);
+}
+
+/* -- Glande mammaire en lactation -- */
+function buildMammary(){
+  const g = G(), R = mulberry32(69);
+  M('conj_im', new THREE.BoxGeometry(8.0, 0.14, 5.4), 0xf6e8d0, { rough: 0.8, p: [0, -0.05, 0] }, g);
+  [[-3.0, -0.8], [-3.0, 0.8], [-1.2, 1.2], [-1.2, -1.2], [0.6, 0.2], [2.2, -0.9], [2.2, 0.9], [3.4, 0.0]].forEach((p) => {
+    M('acin_l', new THREE.SphereGeometry(0.6, 20, 14), 0xe8a1b5, { op: 0.75, depthWrite: false, rough: 0.5, p: [p[0], 0.5, p[1]] }, g);
+    M('lait', new THREE.SphereGeometry(0.42, 16, 12), 0xfaf3e6, { rough: 0.4, op: 0.95, p: [p[0], 0.5, p[1]] }, g);
+    for(let k = 0; k < 4; k++) M('lait', new THREE.SphereGeometry(0.06, 8, 6), 0xfff3b8, { rough: 0.3, p: [p[0] + (R() - 0.5) * 0.5, 0.55 + (R() - 0.5) * 0.3, p[1] + (R() - 0.5) * 0.5] }, g);
+  });
+  ductTube(g, 'canal_g', [[-3.0, 0.5, 0.0], [-1.5, 0.5, 0.0], [0.6, 0.5, 0.0], [3.0, 0.5, -0.2]], 0.13, 0xf4d6a0);
+  [[-1.2, 1.2], [-1.2, -1.2], [2.2, -0.9], [2.2, 0.9]].forEach((p) => ductTube(g, 'canal_g', [[p[0], 0.5, p[1]], [p[0], 0.5, p[1] * 0.4], [p[0], 0.5, 0.0]], 0.07, 0xf4d6a0));
+  INST('myoep_m', new THREE.CapsuleGeometry(0.02, 0.28, 3, 5), 0x4a8a6a, 20, (i, d) => { const a = i * 0.7; d.position.set(-3.0 + Math.cos(a) * 0.62, 0.6 + Math.sin(a * 2) * 0.1, -0.8 + Math.sin(a) * 0.62); d.rotation.set(R() * 3, R() * 3, 0); }, { rough: 0.5 }, g);
+  INST('adipo_m', new THREE.SphereGeometry(0.34, 12, 10), 0xfff3b8, 6, (i, d) => { d.position.set(-3.4 + i * 1.4, 0.3, 2.3); }, { rough: 0.4, op: 0.9 }, g);
+}
+
+HISTO_SETS.push(
+  { key: 'salivaire', name: 'Glandes salivaires', abbr: 'Salivaires', group: 'Appareil digestif', color: '#a86ac0',
+    intro: 'Glandes exocrines de la bouche : acini séreux, muqueux ou mixtes, canaux striés et excréteurs.',
+    preuve: ['Acinus séreux (basophile, noyau rond basal) ou muqueux (clair, noyau aplati repoussé à la base).', 'Canaux striés à striations basales (éosinophiles).', 'Croissants séreux de Giannuzzi sur les acini mixtes (sous-mandibulaire, sublinguale).', 'Parotide : séreuse pure avec adipocytes ; sous-mandibulaire : mixte à prédominance séreuse ; sublinguale : mixte à prédominance muqueuse.'],
+    view: [0, 7.4, 6.8], target: [0, 0, 0.3], build: buildSalivary,
+    items: [
+      X('acin_s', 'Acinus séreux', 0xa86ac0, 'Cellules pyramidales à noyau rond basal et cytoplasme basophile (grains de zymogène) ; sécrètent notamment l\'amylase salivaire.', 'Prédominant dans la parotide.'),
+      X('acin_m', 'Acinus muqueux', 0xf3e6f2, 'Cellules claires à noyau aplati repoussé à la base, riches en mucus qui se colore mal en HE.', 'Prédominant dans la sublinguale et les glandes palatines.'),
+      X('acin_mx', 'Acinus mixte et croissant de Giannuzzi', 0xf3e6f2, 'Acinus muqueux coiffé d\'un croissant de cellules séreuses (croissant de Giannuzzi).', 'Caractéristique de la sous-mandibulaire et de la sublinguale.'),
+      X('myoep', 'Cellules myoépithéliales', 0x4a8a6a, 'Cellules contractiles étoilées autour des acini et des canaux intercalaires : elles expulsent la sécrétion.', 'Marqueurs : actine, p63.'),
+      X('interc', 'Canal intercalaire', 0xf4d6a0, 'Petit canal à épithélium cubique simple qui draine l\'acinus ; sécrète du bicarbonate.', 'Très développé dans la parotide (glande séreuse).'),
+      X('strie_d', 'Canal strié', 0xf08a8a, 'Cellules cylindriques éosinophiles à striations basales (replis membranaires et mitochondries) qui modifient la salive : réabsorption de Na⁺ et Cl⁻, sécrétion de K⁺ et HCO₃⁻.', 'Striations basales : repère des canaux striés.'),
+      X('excreteur', 'Canal excréteur interlobulaire', 0xf6e0b0, 'Canal des septa conjonctifs, à épithélium qui se stratifie vers la sortie ; s\'ouvre dans la bouche (canal de Sténon, canal de Wharton).', 'Dans les septa, avec vaisseaux et nerfs.'),
+      X('septum', 'Septum interlobulaire', 0xfff3b8, 'Conjonctif qui sépare les lobules et porte canaux excréteurs, vaisseaux et nerfs ; adipocytes (surtout dans la parotide).', 'Adipocytes dans la parotide.'),
+    ] },
+
+  { key: 'pancreas', name: 'Pancréas', abbr: 'Pancréas', group: 'Appareil digestif', color: '#f0a040',
+    intro: 'Glande mixte : acini exocrines (enzymes digestives) et îlots de Langerhans (hormones).',
+    preuve: ['Acini séreux purs : pôle apical éosinophile (zymogène), pôle basal basophile.', 'Cellules centroacineuses : signature du pancréas.', 'Pas de canaux striés (≠ glande salivaire).', 'Îlots de Langerhans : amas clairs et très vascularisés au milieu des acini.'],
+    view: [0, 7.2, 6.8], target: [0, 0, 0.2], build: buildPancreas,
+    items: [
+      X('acin_p', 'Acinus pancréatique exocrine', 0xa86ac0, 'Cellules pyramidales avec granules de zymogène (trypsinogène, amylase, lipase) ; sécrétion sous l\'action de la cholécystokinine.', 'Pas de cellules myoépithéliales ; pôle basal basophile, pôle apical éosinophile.'),
+      X('centro', 'Cellules centroacineuses', 0xf6e8d0, 'Cellules claires du début du canal intercalaire, qui pénètrent dans l\'acinus ; sécrètent le bicarbonate.', 'Repère d\'identification spécifique du pancréas.'),
+      X('canal_p', 'Canaux intercalaires et excréteurs', 0xf4d6a0, 'Épithélium cubique puis cylindrique ; collectent les sécrétions vers le canal de Wirsung.', 'Canal de Wirsung (principal) et canal de Santorini (accessoire).'),
+      X('ilot', 'Îlot de Langerhans', 0xf8e8d8, 'Amas de cellules endocrines, plus clair que le tissu exocrine, très vascularisé ; environ 1 à 2 % du volume de la glande.', 'Plus pâle que les acini ; entouré de fines fibres de réticuline.'),
+      X('beta', 'Cellules β (insuline)', 0x5a8fe0, 'Environ 70 % des cellules de l\'îlot, au centre ; insuline hypoglycémiante.', 'Destruction auto-immune dans le diabète de type 1.'),
+      X('alpha', 'Cellules α (glucagon)', 0xf0a040, 'Environ 20 % des cellules, en périphérie de l\'îlot ; glucagon hyperglycémiant.', 'Situées à la périphérie.'),
+      X('delta', 'Cellules δ (somatostatine) et PP', 0x6fbf6a, 'Cellules δ : somatostatine, qui freine les autres cellules ; cellules PP : polypeptide pancréatique.', 'Minoritaires (quelques pour cent).'),
+      X('capill_i', 'Capillaires fenêtrés de l\'îlot', 0xd9534f, 'Réseau capillaire dense et fenêtré qui reçoit directement les hormones.', 'Les hormones passent dans le sang sans canal.'),
+      X('septum_p', 'Septa conjonctifs', 0xf0e1c0, 'Cloisons de conjonctif lâche qui séparent les lobules ; vaisseaux, nerfs et canaux.', 'Lobulation moins nette que dans les glandes salivaires.'),
+    ] },
+
+  HEART_SET,
+
+  { key: 'thymus', name: 'Thymus', abbr: 'Thymus', group: 'Organes lymphoïdes', color: '#7a5ac0',
+    intro: 'Organe lymphoïde primaire : maturation et sélection des lymphocytes T ; lobules à cortex sombre et médullaire claire.',
+    preuve: ['Lobules à cortex sombre (riche en thymocytes) et médullaire claire.', 'Corpuscules de Hassall dans la médullaire (cellules épithéliales kératinisées en couches).', 'Absence de follicules lymphoïdes avec centre germinatif (≠ ganglion).', 'Involution avec l\'âge : remplacement par du tissu adipeux.'],
+    view: [0, 7.2, 5.4], target: [0, 0, 0.5], build: buildThymus,
+    items: [
+      X('capsule_t', 'Capsule et septa', 0xe6cfa0, 'Conjonctif qui entoure l\'organe et le divise en lobules incomplets ; pas de sinus lymphatiques.', 'Pas de vaisseaux lymphatiques afférents.'),
+      X('cortex_t', 'Cortex', 0x5a3f9a, 'Zone sombre dense en thymocytes ; sélection positive ; barrière hémato-thymique.', 'Dense et basophile.'),
+      X('medulle_t', 'Médullaire', 0xe2cdee, 'Zone claire, moins de lymphocytes et plus de cellules épithéliales ; sélection négative.', 'Plus claire que le cortex.'),
+      X('hassall', 'Corpuscule de Hassall', 0xf6c6d6, 'Amas concentriques de cellules épithéliales réticulaires kératinisées.', 'Repère d\'identification du thymus.'),
+      X('adip_t', 'Involution adipeuse', 0xfff3b8, 'Avec l\'âge, le tissu lymphoïde est remplacé par du tissu adipeux.', 'Thymus actif surtout chez l\'enfant et à la puberté.'),
+    ] },
+
+  { key: 'rate', name: 'Rate', abbr: 'Rate', group: 'Organes lymphoïdes', color: '#c0393a',
+    intro: 'Organe lymphoïde secondaire filtrant le sang : pulpe blanche (immunité) et pulpe rouge (hématies).',
+    preuve: ['Pulpe blanche : nodules lymphoïdes avec artériole centrale excentrée, dans la pulpe rouge.', 'Pulpe rouge : cordons de Billroth et sinusoïdes.', 'Capsule et trabécules.', 'Pas de sinus lymphatiques ni de vaisseaux lymphatiques afférents (≠ ganglion).'],
+    view: [0, 7.2, 4.6], target: [0, 0, 0], build: buildSpleen,
+    items: [
+      X('capsule_r', 'Capsule et trabécules', 0xe6cfa0, 'Conjonctif fibro-élastique avec un peu de muscle lisse ; les trabécules portent les vaisseaux.', 'Contractile : peut expulser du sang.'),
+      X('blanche', 'Pulpe blanche (nodule)', 0x5a3f9a, 'Manchon lymphoïde périartériel (lymphocytes T) et follicules lymphoïdes (lymphocytes B).', 'Nodule avec centre germinatif clair.'),
+      X('art_c', 'Artériole centrale', 0xd9534f, 'Branche de l\'artère splénique excentrée dans le nodule.', 'Excentrée : repère de la pulpe blanche.'),
+      X('zone_m', 'Zone marginale', 0xc7a2e0, 'Zone périphérique de la pulpe blanche, riche en macrophages et en cellules B ; présentation des antigènes du sang.', 'Réponse aux antigènes capsulés.'),
+      X('rouge', 'Pulpe rouge (cordons de Billroth et sinusoïdes)', 0xc0393a, 'Cordons de Billroth entre les sinusoïdes ; macrophages qui éliminent les hématies vieillies.', 'Rôle de filtre des hématies ; hypersplénisme.'),
+    ] },
+
+  /* ---- Organes des sens ---- */
+  { key: 'oeil', name: 'Œil (globe oculaire)', abbr: 'Œil', group: 'Organes des sens', color: '#f0c46a',
+    intro: 'Coupe du globe oculaire : milieux transparents, tuniques (sclère, choroïde, rétine) et nerf optique.',
+    preuve: ['Cornée : cinq couches (épithélium pavimenteux stratifié, Bowman, stroma, Descemet, endothélium), avasculaire.', 'Rétine : épithélium pigmentaire, photorécepteurs (cônes et bâtonnets), cellules bipolaires, cellules ganglionnaires.', 'Cristallin : capsule, épithélium antérieur, fibres cristalliniennes ; ni nerfs ni vaisseaux.', 'Papille optique : sans photorécepteurs (tache aveugle) ; fovéa : cônes seulement.'],
+    view: [3.2, 3.6, 5.6], target: [0, 0, 0], build: buildEye,
+    items: [
+      X('cornee', 'Cornée', 0xbfe3ff, 'Cinq couches : épithélium pavimenteux stratifié non kératinisé, membrane de Bowman, stroma (lames de collagène orthogonales), membrane de Descemet, endothélium ; avasculaire.', 'Transparente car avasculaire et à fibres de collagène régulières.'),
+      X('sclere', 'Sclère', 0xf2efe6, 'Conjonctif dense irrégulier opaque (collagène) : coque protectrice ; se continue avec la cornée.', 'Blanc de l\'œil.'),
+      X('choroide', 'Choroïde', 0x4a2a24, 'Tunique vasculaire pigmentée qui nourrit les couches externes de la rétine.', 'Choriocapillaires et membrane de Bruch.'),
+      X('retine', 'Rétine', 0xf0c46a, 'Dix couches : épithélium pigmentaire, photorécepteurs (cônes et bâtonnets), limitantes, couches nucléaires et plexiformes, cellules ganglionnaires, fibres du nerf optique.', 'Inversée : la lumière traverse toutes les couches avant d\'atteindre les photorécepteurs.'),
+      X('macula', 'Macula et fovéa', 0xd9b030, 'Zone centrale de l\'acuité maximale, avec une fovéa riche en cônes (sans bâtonnets).', 'Dégénérescence maculaire liée à l\'âge (DMLA).'),
+      X('nerf_opt', 'Nerf optique et papille', 0xf6efdc, 'Axones des cellules ganglionnaires ; la papille est sans photorécepteurs (tache aveugle).', 'Papille : atteinte dans le glaucome (excavation).'),
+      X('cristallin', 'Cristallin', 0xcfe8f5, 'Lentille biconvexe : capsule, épithélium antérieur, fibres cristalliniennes (cellules sans noyau) ; accommode par déformation.', 'Opacification : cataracte.'),
+      X('iris', 'Iris', 0x5a8f6a, 'Diaphragme pigmenté avec muscles sphincter et dilatateur de la pupille ; épithélium pigmentaire postérieur.', 'Myosis (parasympathique), mydriase (sympathique).'),
+      X('corps_cil', 'Corps ciliaire', 0xd9a070, 'Muscle ciliaire (accommodation), procès ciliaires qui sécrètent l\'humeur aqueuse, zonule qui suspend le cristallin.', 'Humeur aqueuse : pression intraoculaire.'),
+      X('vitre', 'Corps vitré', 0xdff3fb, 'Gel transparent d\'eau, de collagène et d\'acide hyaluronique qui remplit la chambre postérieure.', 'Décollement du vitré possible avec l\'âge.'),
+    ] },
+
+  { key: 'cochlee', name: 'Oreille interne (cochlée)', abbr: 'Cochlée', group: 'Organes des sens', color: '#e58a3a',
+    intro: 'Coupe d\'un tour de cochlée : rampes, membranes et organe de Corti qui transforme le son en influx nerveux.',
+    preuve: ['Trois rampes : vestibulaire et tympanique (périlymphe) et canal cochléaire (endolymphe).', 'Organe de Corti sur la membrane basilaire : une rangée de cellules ciliées internes et trois rangées de cellules ciliées externes.', 'Membrane tectoriale au contact des stéréocils ; strie vasculaire (sécrète l\'endolymphe).', 'Ganglion spiral dans le modiolus : neurones bipolaires du nerf cochléaire. L\'oreille externe, moyenne et le vestibule ne sont pas modélisés ici.'],
+    view: [0, 0.5, 8.2], target: [1.6, 0.3, 0], build: buildCochlea,
+    items: [
+      X('sv', 'Rampe vestibulaire', 0xbfe3ff, 'Canal supérieur rempli de périlymphe, relié à la fenêtre ovale.', 'La périlymphe est riche en sodium (liquide extracellulaire).'),
+      X('st', 'Rampe tympanique', 0x9fd0ec, 'Canal inférieur rempli de périlymphe, aboutissant à la fenêtre ronde.', 'Communique avec la rampe vestibulaire à l\'apex (hélicotrème).'),
+      X('cc', 'Canal cochléaire (endolymphe)', 0xf0d8a0, 'Canal triangulaire rempli d\'endolymphe riche en potassium.', 'Endolymphe riche en K⁺ : produite par la strie vasculaire.'),
+      X('reissner', 'Membrane de Reissner', 0xdcdcdc, 'Fine membrane qui sépare la rampe vestibulaire du canal cochléaire.', 'Limite supérieure du canal cochléaire.'),
+      X('mbasilaire', 'Membrane basilaire', 0xe8c27a, 'Membrane qui supporte l\'organe de Corti ; sa rigidité varie le long de la cochlée (tonotopie).', 'Aigus à la base ; graves à l\'apex.'),
+      X('corti', 'Organe de Corti (cellules ciliées)', 0xe58a3a, 'Une rangée de cellules ciliées internes (transduction) et trois rangées de cellules ciliées externes (amplification), avec cellules de soutien et tunnel de Corti.', 'Cellules ciliées : non régénérées chez l\'homme ; ototoxicité des aminosides.'),
+      X('tectoriale', 'Membrane tectoriale', 0xc9a0e0, 'Lame gélatineuse au contact des stéréocils ; le cisaillement déclenche la dépolarisation.', 'Se déplace par rapport à la membrane basilaire.'),
+      X('strie_v', 'Strie vasculaire', 0xd9534f, 'Épithélium richement vascularisé de la paroi latérale qui sécrète l\'endolymphe.', 'Épithélium vascularisé (rare).'),
+      X('ganglion', 'Ganglion spiral', 0xe9c46a, 'Neurones bipolaires dont les axones forment le nerf cochléaire.', 'Dans le modiolus.'),
+      X('modiolus', 'Modiolus', 0xe6d3b3, 'Axe osseux central de la cochlée.', 'Contient le ganglion spiral et le nerf cochléaire.'),
+    ] },
+
+  /* ---- Glandes endocrines ---- */
+  { key: 'thyroide', name: 'Thyroïde', abbr: 'Thyroïde', group: 'Glandes endocrines', color: '#e8a1b5',
+    intro: 'Glande endocrine à follicules remplis de colloïde ; sécrète les hormones thyroïdiennes et la calcitonine.',
+    preuve: ['Follicules sphériques bordés d\'un épithélium cubique simple (thyrocytes), remplis de colloïde.', 'Colloïde éosinophile avec vacuoles de résorption en périphérie.', 'Cellules C (parafolliculaires) claires dans la paroi des follicules.', 'Réseau capillaire dense autour des follicules.'],
+    view: [0, 7.0, 6.4], target: [0, 0, 0], build: buildThyroid,
+    items: [
+      X('thyrocyte', 'Follicule thyroïdien (thyrocytes)', 0xe8a1b5, 'Épithélium cubique simple qui entoure la colloïde ; hauteur variable avec l\'activité (cylindrique si stimulé).', 'Cellule plus haute = plus active (stimulation par la TSH).'),
+      X('colloide', 'Colloïde', 0xf6c6d6, 'Substance éosinophile de thyroglobuline iodée ; réserve de T3/T4.', 'Vacuoles de résorption à la périphérie : thyroglobuline reprise.'),
+      X('cellC', 'Cellules C (parafolliculaires)', 0xf7f0e0, 'Cellules claires de la paroi des follicules ; sécrètent la calcitonine.', 'Cancer médullaire de la thyroïde.'),
+      X('capill_th', 'Capillaires fenêtrés', 0xd9534f, 'Réseau capillaire dense qui entoure les follicules.', 'Une des glandes les mieux irriguées.'),
+      X('stroma_th', 'Stroma conjonctif', 0xf0e1c0, 'Conjonctif lâche qui sépare les follicules et porte vaisseaux et nerfs.', 'Capsule fine.'),
+    ] },
+
+  { key: 'parathyroide', name: 'Parathyroïde', abbr: 'Parathyroïde', group: 'Glandes endocrines', color: '#b48ad6',
+    intro: 'Petites glandes dont la parathormone augmente la calcémie.',
+    preuve: ['Cordons de cellules principales sombres et petites.', 'Cellules oxyphiles plus grandes et éosinophiles (mitochondries), apparaissent à la puberté.', 'Adipocytes de plus en plus nombreux avec l\'âge.', 'Pas de follicules colloïdes (≠ thyroïde).'],
+    view: [0, 6.8, 5.2], target: [0, 0, 0], build: buildParathyroid,
+    items: [
+      X('principale', 'Cellules principales', 0xb48ad6, 'Petites cellules à noyau rond ; sécrètent la parathormone (PTH).', 'La PTH augmente la calcémie.'),
+      X('oxyphile', 'Cellules oxyphiles', 0xf08a8a, 'Cellules plus grandes, au cytoplasme très éosinophile (nombreuses mitochondries).', 'Apparaissent à la puberté ; rôle hormonal mal connu.'),
+      X('adip_pt', 'Adipocytes', 0xfff3b8, 'Tissu adipeux de plus en plus abondant avec l\'âge.', 'Environ la moitié de la glande chez l\'adulte âgé.'),
+      X('capill_pt', 'Capillaires', 0xd9534f, 'Capillaires fenêtrés qui reçoivent la PTH.', 'Richement vascularisée.'),
+      X('capsule_pt', 'Capsule', 0xe6cfa0, 'Fine capsule conjonctive.', 'Sépare la glande de la thyroïde.'),
+    ] },
+
+  { key: 'surrenale', name: 'Surrénale (cortex et médullaire)', abbr: 'Surrénale', group: 'Glandes endocrines', color: '#e8b070',
+    intro: 'Glande endocrine à cortex zoné (corticostéroïdes) et médullaire chromaffine (catécholamines).',
+    preuve: ['Cortex en trois zones : glomérulée, fasciculée, réticulée.', 'Zone fasciculée : cordons radiaires de cellules claires (spongiocytes).', 'Médullaire : cellules chromaffines et grosse veine centrale.', 'Zonation : « GFR » — le sel, le sucre, le sexe ; de l\'extérieur vers l\'intérieur.'],
+    view: [3.2, 3.2, 6.2], target: [0, 0.2, 0], build: buildAdrenal,
+    items: [
+      X('capsule_s', 'Capsule', 0xe6cfa0, 'Conjonctif dense autour de la glande.', 'Enveloppe externe.'),
+      X('glomerulee', 'Zone glomérulée', 0xe8b070, 'Cordons arqués de petites cellules ; sécrète les minéralocorticoïdes (aldostérone), sous l\'action de l\'angiotensine II.', '« Le sel » : aldostérone.'),
+      X('fasciculee', 'Zone fasciculée', 0xf5e6c0, 'Cordons radiaires de grandes cellules claires riches en lipides (spongiocytes) ; cortisol, sous l\'action de l\'ACTH.', '« Le sucre » : glucocorticoïdes ; zone la plus épaisse.'),
+      X('reticulee', 'Zone réticulée', 0xc08060, 'Réseau de cellules plus petites et plus sombres ; androgènes surrénaliens (DHEA).', '« Le sexe » : androgènes.'),
+      X('chromaffine', 'Médullaire (cellules chromaffines)', 0xb070a0, 'Cellules dérivées des crêtes neurales, sécrétant adrénaline et noradrénaline sous contrôle des fibres préganglionnaires sympathiques.', 'Phéochromocytome : tumeur de la médullosurrénale.'),
+      X('vein_c', 'Veine centrale', 0x4a6fd0, 'Volumineuse veine qui draine la médullaire.', 'Repère de la médullaire.'),
+    ] },
+
+  { key: 'hypophyse', name: 'Hypophyse', abbr: 'Hypophyse', group: 'Glandes endocrines', color: '#f08a8a',
+    intro: 'Hypophyse : adénohypophyse glandulaire et neurohypophyse nerveuse.',
+    preuve: ['Adénohypophyse : cordons de cellules chromophiles (acidophiles, basophiles) et chromophobes entre des sinusoïdes.', 'Neurohypophyse : axones amyéliniques, pituicytes et corps de Herring.', 'Pars intermedia : kystes colloïdes de Rathke.', 'Tige : système porte hypothalamo-hypophysaire.'],
+    view: [0, 1.0, 8.4], target: [0, 0, 0], build: buildPituitary,
+    items: [
+      X('adeno', 'Adénohypophyse (pars distalis)', 0xf1d9d0, 'Glande épithéliale dérivée de la poche de Rathke ; cellules disposées en cordons entre des capillaires sinusoïdes.', 'Origine épithéliale (≠ neurohypophyse).'),
+      X('acido', 'Cellules acidophiles', 0xf08a8a, 'Cellules à granules acidophiles : hormone de croissance (GH) et prolactine (PRL).', 'Somatotropes et mammotropes.'),
+      X('baso', 'Cellules basophiles', 0x6a5acd, 'Cellules à granules basophiles : ACTH, TSH, FSH, LH.', 'Corticotropes, thyréotropes et gonadotropes.'),
+      X('chromo', 'Cellules chromophobes', 0xece8dd, 'Cellules pâles, peu granulées (cellules de réserve ou dégranulées).', 'Cytoplasme clair.'),
+      X('intermed', 'Pars intermedia', 0xcbb8e8, 'Mince zone entre les deux lobes, avec des kystes colloïdes de Rathke.', 'Vestige de la poche de Rathke.'),
+      X('rathke', 'Kystes de Rathke', 0xfdf6fb, 'Petits kystes tapissés d\'épithélium, vestiges de la poche de Rathke.', 'Peut devenir un craniopharyngiome.'),
+      X('neuro', 'Neurohypophyse (pars nervosa)', 0xdcd2e8, 'Tissu nerveux : terminaisons axonales des neurones hypothalamiques ; stocke et libère l\'ADH et l\'ocytocine.', 'Pas de cellules sécrétrices : stockage seulement.'),
+      X('axones', 'Axones hypothalamo-hypophysaires', 0xe9c46a, 'Axones amyéliniques venant des noyaux supra-optiques et paraventriculaires.', 'Tractus hypothalamo-hypophysaire.'),
+      X('herring', 'Corps de Herring', 0xf2a63a, 'Dilatations des terminaisons axonales contenant les granules de sécrétion.', 'Stockage de l\'ADH et de l\'ocytocine.'),
+      X('tige', 'Tige pituitaire', 0xf0e1c0, 'Relie l\'hypophyse à l\'hypothalamus ; système porte hypothalamo-hypophysaire.', 'Les hormones hypothalamiques gagnent l\'adénohypophyse par le système porte.'),
+    ] },
+
+  /* ---- Glande mammaire ---- */
+  { key: 'mammaire', name: 'Glande mammaire (lactation)', abbr: 'Mammaire', group: 'Appareil génital féminin', color: '#e8a1b5',
+    intro: 'Glande sudoripare modifiée : en lactation, les acini sont dilatés et remplis de lait.',
+    preuve: ['Lobules à acini dilatés, à lumière remplie de lait.', 'Cellules myoépithéliales entre l\'épithélium et la lame basale.', 'Canaux galactophores à épithélium cubique bistratifié.', 'Conjonctif intralobulaire lâche et interlobulaire dense avec adipocytes.'],
+    view: [0, 7.4, 5.6], target: [0, 0, 0], build: buildMammary,
+    items: [
+      X('acin_l', 'Acini sécrétoires', 0xe8a1b5, 'Cellules cubiques qui sécrètent le lait : sécrétion mérocrine (protéines), apocrine (lipides) et exocytose.', 'Peu développés au repos ; dilatés en lactation.'),
+      X('lait', 'Lait (lipides et protéines)', 0xfaf3e6, 'Sécrétion riche en lipides (gouttelettes) et protéines (caséine).', 'Gouttelettes lipidiques expulsées par bourgeonnement apocrine.'),
+      X('myoep_m', 'Cellules myoépithéliales', 0x4a8a6a, 'Cellules contractiles qui expulsent le lait sous l\'effet de l\'ocytocine.', 'Réflexe d\'éjection du lait.'),
+      X('canal_g', 'Canaux galactophores', 0xf4d6a0, 'Épithélium cubique bistratifié ; convergent vers des sinus lactifères et le mamelon.', 'Épithélium bistratifié puis stratifié vers le mamelon.'),
+      X('conj_im', 'Conjonctif interlobulaire', 0xf6e8d0, 'Conjonctif dense entre les lobules, vascularisé ; le conjonctif intralobulaire est plus lâche.', 'Plus dense que le conjonctif intralobulaire.'),
+      X('adipo_m', 'Tissu adipeux', 0xfff3b8, 'Adipocytes entre les lobules, abondants au repos.', 'Remplacé par le tissu glandulaire en lactation.'),
+    ] },
 );
 finishHisto();
 
