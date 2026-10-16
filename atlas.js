@@ -15,6 +15,7 @@ const ATLAS_MAX_SIDE = 2400; // px, côté le plus long après réduction évent
 const ATLAS_ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
 const ATLAS_CACHE_KEY = "histo_atlas_cache_v1";
 const ATLAS_NAME_KEY = "histo_atlas_contributor_v1";
+const ATLAS_3D_VERSION = "10";
 
 /* Organes fixes (même clés que la table atlas_organs). Repères généraux uniquement :
    à confronter au cours du Professeur ; aucune image n'est inventée. */
@@ -218,7 +219,7 @@ const AtlasModule = (() => {
       const l = qs("#atlas-3d-loading", body);
       if (l) l.remove();
     });
-    f.src = "atlas-3d.html?embed=1";
+    f.src = "atlas-3d.html?embed=1&v=" + ATLAS_3D_VERSION; // le numéro de version contourne les vieux caches
     wrap.appendChild(f);
     iframe = f;
   }

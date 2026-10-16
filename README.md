@@ -40,7 +40,16 @@ Application de révision d'histologie et d'embryologie pour étudiants en médec
   toucher) : mise en surbrillance, étiquette flottante, description brève et
   fiche Structure / Fonction / À retenir. Boutons « Isoler » (atténue les
   autres structures) et « Coupe » (retire la moitié proche de la coque).
-  Histologie et embryologie : inchangées (étapes 2 et 3).
+  Sous-onglets de l'Atlas 3D, version v10 :
+  **Histologie** — 35 coupes en 9 groupes : tissus fondamentaux (épithéliums,
+  conjonctifs, cartilages, os, sang, muscles, nerveux, lymphoïde), dent,
+  digestif, circulatoire, respiratoire, urinaire, génital masculin et féminin,
+  tégumentaire. Chaque coupe : structures sélectionnables + « preuve
+  d'identification histologique ». **Embryologie** — 18 stades, de la rencontre
+  des gamètes à la délivrance, avec frise chronologique, événements clés et
+  repères cliniques. Non couverts à ce jour : glandes salivaires, pancréas,
+  cœur, thymus, rate, œil, oreille, glandes endocrines, glande mammaire.
+  Une étiquette « Version du modèle » en bas du 3D permet de vérifier la mise à jour.
 
 ### Configurer le numéro WhatsApp de l'assistant du Professeur
 

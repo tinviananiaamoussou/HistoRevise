@@ -1,4 +1,4 @@
-const CACHE_NAME = "histo-revise-v3";
+const CACHE_NAME = "histo-revise-v4";
 const ASSETS = [
   "./",
   "./index.html",
@@ -15,7 +15,10 @@ const ASSETS = [
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS)).then(() => self.skipWaiting())
+    caches.open(CACHE_NAME)
+      // « reload » : on ignore le cache HTTP du navigateur pour installer des fichiers VRAIMENT à jour
+      .then((cache) => Promise.all(ASSETS.map((u) => fetch(new Request(u, { cache: "reload" })).then((r) => { if (!r.ok) throw new Error("HTTP " + r.status + " " + u); return cache.put(u, r); }))))
+      .then(() => self.skipWaiting())
   );
 });
 
@@ -33,10 +36,9 @@ self.addEventListener("fetch", (event) => {
   if (url.origin !== location.origin || event.request.method !== "GET") return;
   event.respondWith(
     caches.match(event.request).then((cached) => {
-      const fetchPromise = fetch(event.request)
+      const fetchPromise = fetch(event.request.url, { cache: "no-cache" })
         .then((response) => {
-          const copy = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
+          if (response && response.ok) { const copy = response.clone(); caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy)); }
           return response;
         })
         .catch(() => cached);
