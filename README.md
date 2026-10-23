@@ -54,6 +54,14 @@ Application de révision d'histologie et d'embryologie pour étudiants en médec
   développement (ossification), moelle osseuse, ovaire en grossesse.
   Une étiquette « Version du modèle » en bas du 3D permet de vérifier la mise à jour.
 
+- **Atlas 3D v12** : (1) **Ultrastructure des organites** (Biologie cellulaire → « Ultrastructure des organites ») : mitochondrie (8 éléments : membranes, espace intermembranaire, crêtes, ATP synthase, matrice, ADNmt, mitoribosomes), lysosome (6), appareil de Golgi (6), noyau (7), avec bouton « Voir l'ultrastructure » depuis la cellule entière. (2) **Épithéliums détaillés** : chaque cellule, couche, noyau, plateau strié, cils et membrane basale est sélectionnable séparément (14 éléments). (3) **Embryologie** : deux stades ajoutés — « Dérivés des trois feuillets » et « Placenta et annexes ». Pas encore détaillés : ultrastructure du REG, REL, peroxysome, centrosome ; cellules et couches des autres tissus (conjonctifs, muscles, nerveux, parois d'organes) ; ossification et autres notions d'embryologie (arcs pharyngés, cœur, face, tube digestif, appareil génital).
+
+- **Atlas 3D v13** : ultrastructure ajoutée pour REG, REL, peroxysome et centrosome (8 organites au total) ; neurone détaillé (noyau, nucléole, cône d'implantation) ; fibres de collagène du conjonctif ; deux stades d'embryologie (« Arcs et poches pharyngés », « Tube cardiaque primitif »). Pas encore faits : face, tube digestif, appareil génital, ossification ; ultrastructure du cytosquelette, des ribosomes et de la membrane plasmique ; ostéoblastes/ostéoclastes ; coupes d'organes à parois. Contenu rédigé de mémoire, à confronter au cours.
+
+- **Atlas 3D v14** : ultrastructure du ribosome, du cytosquelette et de la membrane plasmique (11 organites) ; cellules sélectionnables sur la coupe de l'intestin grêle, de l'estomac, de l'aorte et de l'œsophage ; ostéoblastes, ostéoclastes et ostéoïde dans l'os ; stades Face et palais, Tube digestif, Appareil génital, Ossification (26 stades). Pas encore fait : cellules des autres parois (côlon, artère musculaire, veine, trachée, vessie…), et fiches avancées d'embryologie (diaphragme, système urinaire, membres, SNC). Contenu rédigé de mémoire, à confronter au cours.
+
+- **Atlas 3D v15** : ultrastructure ajoutée pour les cils et flagelles (axonème 9+2, corps basal), les jonctions cellulaires et la matrice extracellulaire (14 organites au total) ; embryologie : Système nerveux (vésicules, moelle, plaques alaire et basale), Bourgeons des membres, Diaphragme, Appareil urinaire (30 stades). Non couvert : cellules des parois du côlon, artère musculaire, veine, trachée, vessie ; embryologie de l'oreille, de l'œil, des glandes endocrines, du squelette axial. Contenu rédigé de mémoire, à confronter au cours.
+
 ### Configurer le numéro WhatsApp de l'assistant du Professeur
 
 Directement dans l'app : icône ⚙️ en haut à droite de l'écran Chat IA →
